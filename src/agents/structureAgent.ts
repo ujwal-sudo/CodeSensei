@@ -1,4 +1,4 @@
-import { callGeminiAgent } from './baseAgent';
+import { runAgent } from './baseAgent';
 import { AGENT_PROMPTS } from '../../prompts';
 import { CodeChunk } from '../chunker/chunkRepo';
 import { Schema, Type } from '@google/genai';
@@ -55,5 +55,5 @@ export interface StructureOutput {
 export const runStructureAgent = async (chunks: CodeChunk[]): Promise<StructureOutput> => {
   // Aggregate chunk content for structure analysis (mostly file headers/imports)
   const context = chunks.filter(c => c.type === 'file').map(c => `File: ${c.filePath}\n${c.content.substring(0, 2000)}...`).join('\n---\n');
-  return callGeminiAgent<StructureOutput>(AGENT_PROMPTS.STRUCTURE, context, schema, 0.1);
+  return runAgent<StructureOutput>(AGENT_PROMPTS.STRUCTURE, context, undefined, schema);
 };

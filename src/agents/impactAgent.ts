@@ -1,4 +1,4 @@
-import { callGeminiAgent } from './baseAgent';
+import { runAgent } from './baseAgent';
 import { AGENT_PROMPTS } from '../../prompts';
 import { CodeChunk } from '../chunker/chunkRepo';
 import { Schema, Type } from '@google/genai';
@@ -38,7 +38,7 @@ export const runImpactAgent = async (
   `;
   
   // Mapping output to match internal ImpactPrediction type (camelCase vs snake_case in schema)
-  const raw = await callGeminiAgent<any>(AGENT_PROMPTS.IMPACT, context, schema, 0.2);
+  const raw = await runAgent<any>(AGENT_PROMPTS.IMPACT, context, undefined, schema);
   
   return {
     change: raw.change,

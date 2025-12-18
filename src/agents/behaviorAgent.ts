@@ -1,4 +1,4 @@
-import { callGeminiAgent } from './baseAgent';
+import { runAgent } from './baseAgent';
 import { AGENT_PROMPTS } from '../../prompts';
 import { CodeChunk } from '../chunker/chunkRepo';
 import { Schema, Type } from '@google/genai';
@@ -51,5 +51,5 @@ export interface BehaviorOutput {
 export const runBehaviorAgent = async (chunks: CodeChunk[]): Promise<BehaviorOutput> => {
   // Behavior needs logic bodies
   const context = chunks.slice(0, 15).map(c => `Block: ${c.id}\n${c.content}`).join('\n---\n');
-  return callGeminiAgent<BehaviorOutput>(AGENT_PROMPTS.BEHAVIOR, context, schema, 0.2);
+  return runAgent<BehaviorOutput>(AGENT_PROMPTS.BEHAVIOR, context, undefined, schema);
 };

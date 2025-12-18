@@ -1,4 +1,4 @@
-import { callGeminiAgent } from './baseAgent';
+import { runAgent } from './baseAgent';
 import { AGENT_PROMPTS } from '../../prompts';
 import { CodeChunk } from '../chunker/chunkRepo';
 import { Schema, Type } from '@google/genai';
@@ -38,5 +38,5 @@ export interface RiskOutput {
 
 export const runRiskAgent = async (chunks: CodeChunk[]): Promise<RiskOutput> => {
   const context = chunks.map(c => `File: ${c.filePath}\n${c.content}`).join('\n---\n');
-  return callGeminiAgent<RiskOutput>(AGENT_PROMPTS.RISK, context, schema, 0.2);
+  return runAgent<RiskOutput>(AGENT_PROMPTS.RISK, context, undefined, schema);
 };

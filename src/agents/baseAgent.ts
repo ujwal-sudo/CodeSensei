@@ -1,103 +1,76 @@
 
-import { GoogleGenAI, Schema } from "@google/genai";
+import { GoogleGenerativeAI, Schema } from "@google/genai";
 
-function cleanJson(text: string): string {
-  // Remove markdown code blocks if present (```json ... ```)
-  let cleaned = text.replace(/```json/g, '').replace(/```/g, '');
-  // Trim whitespace
-  cleaned = cleaned.trim();
-  return cleaned;
-}
+// Support both Vite `import.meta.env.VITE_GEMINI_API_KEY` and Node `process.env.API_KEY`.
+const apiKeyFromVite = typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_GEMINI_API_KEY;
+const API_KEY = apiKeyFromVite || process.env.API_KEY;
+if (!API_KEY) throw new Error('Gemini API key missing: set VITE_GEMINI_API_KEY or API_KEY');
 
-function repairTruncatedJson(jsonStr: string): string {
-  // This is a heuristic to save valuable data if the token limit cuts off the JSON.
-  
-  // 1. Remove trailing backslash if present (escaped quote cut off)
-  if (jsonStr.endsWith('\\')) {
-      jsonStr = jsonStr.slice(0, -1);
-  }
-  
-  // 2. Handle dangling string literals
-  // Count unescaped quotes. If odd, we are likely inside a string.
-  const quoteCount = (jsonStr.match(/(?<!\\)"/g) || []).length;
-  if (quoteCount % 2 !== 0) {
-    jsonStr += '"';
-  }
+const genAI = new GoogleGenerativeAI(API_KEY as string);
 
-  // 3. Balance Brackets/Braces
-  const stack: string[] = [];
-  let inString = false;
-
-  for (let i = 0; i < jsonStr.length; i++) {
-    const char = jsonStr[i];
-    // Toggle string state on unescaped quote
-    if (char === '"' && (i === 0 || jsonStr[i-1] !== '\\')) {
-      inString = !inString;
-      continue;
-    }
-    
-    if (inString) continue;
-
-    if (char === '{') stack.push('}');
-    else if (char === '[') stack.push(']');
-    else if (char === '}' || char === ']') {
-      if (stack.length > 0 && stack[stack.length - 1] === char) {
-        stack.pop();
-      }
-    }
-  }
-
-  // Close remaining open structures in reverse order
-  while (stack.length > 0) {
-    jsonStr += stack.pop();
-  }
-
-  return jsonStr;
-}
-
-export async function callGeminiAgent<T>(
+export async function runAgent<T>(
   systemPrompt: string,
-  userContext: string,
-  responseSchema: Schema,
-  temperature: number = 0.2
+  userInput: string,
+  model = "gemini-3-pro-preview"
+  , responseSchema?: Schema
 ): Promise<T> {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Key missing");
-  
-  const ai = new GoogleGenAI({ apiKey });
-  
-  // Switch to gemini-3-pro-preview for better adherence to schema and handling large outputs without truncation errors
-  const modelId = 'gemini-3-pro-preview'; 
+  function cleanJson(text: string): string {
+    let cleaned = text.replace(/```json/g, '').replace(/```/g, '');
+    return cleaned.trim();
+  }
 
-  try {
-    const response = await ai.models.generateContent({
-      model: modelId,
-      contents: `${systemPrompt}\n\nDATA CONTEXT:\n${userContext}`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-        temperature: temperature,
+  function repairTruncatedJson(jsonStr: string): string {
+    if (jsonStr.endsWith('\\')) jsonStr = jsonStr.slice(0, -1);
+    const quoteCount = (jsonStr.match(/(?<!\\)"/g) || []).length;
+    if (quoteCount % 2 !== 0) jsonStr += '"';
+
+    const stack: string[] = [];
+    let inString = false;
+    for (let i = 0; i < jsonStr.length; i++) {
+      const char = jsonStr[i];
+      if (char === '"' && (i === 0 || jsonStr[i-1] !== '\\')) {
+        inString = !inString;
+        continue;
       }
-    });
-
-    if (response.text) {
-      const cleanedText = cleanJson(response.text);
-      try {
-        return JSON.parse(cleanedText) as T;
-      } catch (parseError) {
-        console.warn("JSON Parse Error. Attempting repair on truncated JSON...");
-        try {
-          const repairedText = repairTruncatedJson(cleanedText);
-          return JSON.parse(repairedText) as T;
-        } catch (repairError) {
-          console.error("Critical: Failed to parse JSON even after repair.", response.text.slice(-100));
-          throw new Error("Agent response was malformed.");
-        }
+      if (inString) continue;
+      if (char === '{') stack.push('}');
+      else if (char === '[') stack.push(']');
+      else if (char === '}' || char === ']') {
+        if (stack.length > 0 && stack[stack.length - 1] === char) stack.pop();
       }
     }
-    throw new Error("Agent returned empty response");
+    while (stack.length > 0) jsonStr += stack.pop();
+    return jsonStr;
+  }
+
+  const generationConfig: any = {
+    temperature: 0,
+    responseMimeType: "application/json"
+  };
+  if (responseSchema) generationConfig.responseSchema = responseSchema;
+
+  const modelInstance = genAI.getGenerativeModel({
+    model,
+    systemInstruction: systemPrompt,
+    generationConfig
+  });
+
+  const result = await modelInstance.generateContent(userInput);
+  const text = result.response?.text?.() ?? (result as any).responseText ?? '';
+
+  const cleaned = cleanJson(text);
+  try {
+    return JSON.parse(cleaned) as T;
   } catch (e) {
-    console.error(`Agent Error (${modelId}):`, e);
-    throw e;
+    if (responseSchema) {
+      // Try a best-effort repair when schema was provided
+      const repaired = repairTruncatedJson(cleaned);
+      try {
+        return JSON.parse(repaired) as T;
+      } catch (e2) {
+        throw new Error(`Agent JSON parse failed after repair:\n${text}`);
+      }
+    }
+    throw new Error(`Agent JSON parse failed:\n${text}`);
   }
 }

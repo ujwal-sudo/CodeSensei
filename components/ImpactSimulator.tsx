@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { runImpactAnalysis } from '../services/geminiService';
+import { trackEvent } from '../src/utils/analytics';
 import { CodeAnalysisResult, FileNode, ImpactPrediction } from '../types';
 import { AlertTriangle, ArrowRight, Activity, CheckCircle, Shield } from 'lucide-react';
 
@@ -18,8 +19,10 @@ const ImpactSimulator: React.FC<Props> = ({ analysis, files }) => {
     if (!proposal.trim()) return;
     setLoading(true);
     try {
+      try { trackEvent('impact_simulation_started', { length: proposal.length }); } catch (_) {}
       const prediction = await runImpactAnalysis(proposal, analysis, files);
       setResult(prediction);
+      try { trackEvent('impact_simulation_completed', { severity: prediction.severityEstimate }); } catch (_) {}
     } catch (e) {
       console.error(e);
       alert('Simulation failed.');

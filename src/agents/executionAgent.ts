@@ -1,4 +1,4 @@
-import { callGeminiAgent } from './baseAgent';
+import { runAgent } from './baseAgent';
 import { AGENT_PROMPTS } from '../../prompts';
 import { CodeChunk } from '../chunker/chunkRepo';
 import { Schema, Type } from '@google/genai';
@@ -55,5 +55,5 @@ export const runExecutionAgent = async (chunks: CodeChunk[], structureSummary: s
     CODE CONTEXT:
     ${chunks.slice(0, 10).map(c => c.content).join('\n')}
   `;
-  return callGeminiAgent<ExecutionOutput>(AGENT_PROMPTS.EXECUTION, context, schema, 0.4);
+  return runAgent<ExecutionOutput>(AGENT_PROMPTS.EXECUTION, context, undefined, schema);
 };

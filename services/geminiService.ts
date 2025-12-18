@@ -5,6 +5,7 @@ import { MAP_FILE_SYSTEM_PROMPT, REDUCE_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT } from
 // CHANGED: Added 'src' to path because services/ is a sibling of src/, not inside it.
 import { runImpactAgent } from '../src/agents/impactAgent';
 import { chunkRepository } from '../src/chunker/chunkRepo';
+import { orchestrateAgents } from '../src/agentOrchestrator';
 
 // --- Schemas ---
 
@@ -113,77 +114,27 @@ async function asyncPool<T>(poolLimit: number, items: any[], iteratorFn: (item: 
 
 export const analyzeRepository = async (
   files: FileNode[],
-  onProgress: (progress: AnalysisProgress) => void
+  onProgress?: (progress: AnalysisProgress) => void,
+  onAgentProgress?: (agentName: string) => void
 ): Promise<CodeAnalysisResult> => {
-  const ai = getAI();
-  
-  // 1. MAP PHASE: Analyze individual files
-  onProgress({ stage: 'mapping', currentFile: 0, totalFiles: files.length, currentFileName: '', message: 'Initializing analysis...' });
-  
-  let processedCount = 0;
-  
-  const mapFile = async (file: FileNode): Promise<FileSummary | null> => {
-    try {
-      // Skip large assets or non-code files to save tokens
-      if (file.size > 100000) return null; // >100KB skip for demo speed
-      
-      processedCount++;
-      onProgress({
-        stage: 'mapping',
-        currentFile: processedCount,
+  // Delegate to the multi-agent orchestrator which runs specialized agents in parallel
+  // and performs deterministic synthesis via the Synthesizer agent.
+  if (onProgress) onProgress({ stage: 'mapping', currentFile: 0, totalFiles: files.length, currentFileName: '', message: 'Starting multi-agent analysis...' });
+  const result = await orchestrateAgents(files, (stage) => {
+    // Translate orchestrator stages into AnalysisProgress updates expected by callers
+    if (onProgress) {
+      const progress: AnalysisProgress = {
+        stage,
+        currentFile: files.length,
         totalFiles: files.length,
-        currentFileName: file.path,
-        message: `Analyzing structure: ${file.path}`
-      });
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `${MAP_FILE_SYSTEM_PROMPT}\n\nFILE_NAME: ${file.path}\nCONTENT:\n${file.content.slice(0, 8000)}`, // Truncate for safety
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: FILE_SUMMARY_SCHEMA,
-          temperature: 0.1
-        }
-      });
-
-      if (!response.text) return null;
-      return JSON.parse(response.text) as FileSummary;
-    } catch (e) {
-      console.warn(`Failed to analyze file ${file.path}`, e);
-      return null;
+        currentFileName: '',
+        message: `Orchestrator: ${stage}`
+      };
+      onProgress(progress);
     }
-  };
+  }, onAgentProgress);
 
-  // Run Map phase with concurrency limit of 3 to avoid rate limits
-  const fileSummaries = (await asyncPool(3, files, mapFile)).filter(Boolean) as FileSummary[];
-
-  // 2. REDUCE PHASE: Synthesize Architecture
-  onProgress({
-    stage: 'reducing',
-    currentFile: files.length,
-    totalFiles: files.length,
-    currentFileName: 'Global Context',
-    message: 'Synthesizing Knowledge Graph & Risk Report...'
-  });
-
-  const reduceResponse = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview', // Stronger model for synthesis
-    contents: `${REDUCE_SYSTEM_PROMPT}\n\nFILE_SUMMARIES:\n${JSON.stringify(fileSummaries, null, 2)}`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: ANALYSIS_RESULT_SCHEMA,
-      temperature: 0.2
-    }
-  });
-
-  if (!reduceResponse.text) throw new Error("Failed to generate synthesis report.");
-  
-  const result = JSON.parse(reduceResponse.text) as CodeAnalysisResult;
-  
-  // Augment result with execution flow placeholder (can be generated on-demand later)
-  result.executionFlow = []; 
-
-  onProgress({ stage: 'complete', currentFile: files.length, totalFiles: files.length, currentFileName: '', message: 'Analysis Complete.' });
+  if (onProgress) onProgress({ stage: 'complete', currentFile: files.length, totalFiles: files.length, currentFileName: '', message: 'Analysis complete via multi-agent orchestrator.' });
   return result;
 };
 

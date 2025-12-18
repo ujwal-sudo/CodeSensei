@@ -1,5 +1,5 @@
 
-import { callGeminiAgent } from './baseAgent';
+import { runAgent } from './baseAgent';
 import { AGENT_PROMPTS } from '../../prompts';
 import { Schema, Type } from '@google/genai';
 import { GraphData } from '../../types';
@@ -51,5 +51,5 @@ export interface SynthesizerOutput {
 
 export const runSynthesizerAgent = async (agentOutputs: any): Promise<SynthesizerOutput> => {
   const context = JSON.stringify(agentOutputs, null, 2);
-  return callGeminiAgent<SynthesizerOutput>(AGENT_PROMPTS.SYNTHESIZER, context, schema, 0.1);
+  return runAgent<SynthesizerOutput>(AGENT_PROMPTS.SYNTHESIZER, context, undefined, schema);
 };

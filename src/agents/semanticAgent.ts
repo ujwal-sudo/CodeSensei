@@ -1,4 +1,4 @@
-import { callGeminiAgent } from './baseAgent';
+import { runAgent } from './baseAgent';
 import { AGENT_PROMPTS } from '../../prompts';
 import { CodeChunk } from '../chunker/chunkRepo';
 import { Schema, Type } from '@google/genai';
@@ -50,5 +50,5 @@ export interface SemanticOutput {
 
 export const runSemanticAgent = async (chunks: CodeChunk[]): Promise<SemanticOutput> => {
   const context = chunks.slice(0, 15).map(c => `Chunk: ${c.id}\n${c.content}`).join('\n---\n');
-  return callGeminiAgent<SemanticOutput>(AGENT_PROMPTS.SEMANTIC, context, schema, 0.3);
+  return runAgent<SemanticOutput>(AGENT_PROMPTS.SEMANTIC, context, undefined, schema);
 };

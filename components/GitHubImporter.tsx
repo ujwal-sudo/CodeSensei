@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { Github, Download, AlertCircle, CheckCircle, Loader2, Key } from 'lucide-react';
 import { GlassPanel, NeonButton } from './ui';
-import { importRepository } from '../services/githubService';
+import { fetchGitHubRepoFiles } from '../services/githubFetch';
+import { trackEvent } from '../src/utils/analytics';
 
 interface GitHubImporterProps {
   onImportComplete: (files: Array<{path: string; content: string; language: string; size: number}>) => void;
@@ -28,26 +29,33 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
     setStatus('Connecting to GitHub...');
 
     try {
-      const result = await importRepository({ url, branch, token });
-
-      if (result.success && result.data) {
-        setStatus(`Successfully imported ${result.data.files.length} files.`);
-        
-        // Short delay to show success message before transition
-        setTimeout(() => {
-          if (result.data) {
-             onImportComplete(result.data.files);
-          }
-        }, 1000);
-      } else {
-        setError(result.error || "Import failed");
-        setLoading(false);
-      }
+      const files = await fetchGitHubRepoFiles(url, token || undefined, branch || undefined);
+      setStatus(`Successfully fetched ${files.length} files.`);
+      try { trackEvent('github_import', { url, count: files.length }); } catch (_) {}
+      setTimeout(() => onImportComplete(files.map(f => ({ path: f.path, content: f.content, language: f.language, size: f.size }))), 800);
+      setLoading(false);
 
     } catch (err: any) {
-      // Handle the "Backend unavailable" throw from service
       setLoading(false);
-      onError("Backend service unavailable. Switching to offline demo mode.");
+      // Provide clearer messages for common GitHub API errors
+      try { trackEvent('github_import_failed', { url, status: err?.status || 'unknown' }); } catch (_) {}
+      if (err && err.status === 401) {
+        setError('Unauthorized (401). Check your token.');
+        onError('Unauthorized (401) — invalid or missing token for private repo.');
+        return;
+      }
+      if (err && err.status === 403) {
+        setError('Forbidden (403). Rate limit or access denied.');
+        onError('Forbidden (403) — rate limit or insufficient permissions.');
+        return;
+      }
+      if (err && err.status === 404) {
+        setError('Repository not found (404). Check the URL.');
+        onError('Not Found (404) — repository does not exist or is inaccessible.');
+        return;
+      }
+      console.error('[GitHub Import Error]', err);
+      onError('Failed to import repository. Switching to demo mode.');
     }
   };
 
@@ -88,6 +96,7 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
             onChange={(e) => setToken(e.target.value)}
             disabled={loading}
           />
+          <p className="text-[11px] text-slate-500 mt-1">GitHub token required for private repos (not persisted).</p>
         </div>
       </div>
 
