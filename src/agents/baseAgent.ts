@@ -1,19 +1,22 @@
 
-import { GoogleGenerativeAI, Schema } from "@google/genai";
-
+// Use dynamic import to avoid static bundler issues with the SDK exports.
 // Support both Vite `import.meta.env.VITE_GEMINI_API_KEY` and Node `process.env.API_KEY`.
 const apiKeyFromVite = typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_GEMINI_API_KEY;
 const API_KEY = apiKeyFromVite || process.env.API_KEY;
 if (!API_KEY) throw new Error('Gemini API key missing: set VITE_GEMINI_API_KEY or API_KEY');
 
-const genAI = new GoogleGenerativeAI(API_KEY as string);
-
 export async function runAgent<T>(
   systemPrompt: string,
   userInput: string,
-  model = "gemini-3-pro-preview"
-  , responseSchema?: Schema
+  model = "gemini-3-pro-preview",
+  responseSchema?: any
 ): Promise<T> {
+  // Dynamically load the SDK at runtime so bundlers don't statically analyze exports.
+  const genaiModule = await import('@google/genai');
+  // Support either GoogleGenerativeAI or GoogleGenAI constructor names.
+  const GenAIConstructor = (genaiModule as any).GoogleGenerativeAI || (genaiModule as any).GoogleGenAI || (genaiModule as any).default;
+  if (!GenAIConstructor) throw new Error('Could not find a GenAI constructor in @google/genai');
+  const genAI = new GenAIConstructor(API_KEY as string || { apiKey: API_KEY });
   function cleanJson(text: string): string {
     let cleaned = text.replace(/```json/g, '').replace(/```/g, '');
     return cleaned.trim();

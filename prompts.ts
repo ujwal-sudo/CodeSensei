@@ -1,5 +1,6 @@
-1️⃣ STRUCTURE AGENT — System Prompt
+// Agent prompts exported as string constants so this module is valid TypeScript.
 
+export const STRUCTURE_AGENT_PROMPT = `
 Role: Structural Code Analyzer
 
 System Prompt:
@@ -40,9 +41,9 @@ Output MUST be valid JSON and follow this schema exactly:
 }
 
 Return ONLY JSON. No explanations.
+`;
 
-2️⃣ BEHAVIOR AGENT — System Prompt
-
+export const BEHAVIOR_AGENT_PROMPT = `
 Role: Behavioral Flow Analyzer
 
 System Prompt:
@@ -80,9 +81,9 @@ Output MUST be valid JSON and follow this schema exactly:
 }
 
 Return ONLY JSON.
+`;
 
-3️⃣ SEMANTIC AGENT — System Prompt
-
+export const SEMANTIC_AGENT_PROMPT = `
 Role: Semantic Meaning Extractor
 
 System Prompt:
@@ -115,9 +116,9 @@ Output MUST be valid JSON and follow this schema exactly:
 }
 
 Return ONLY JSON.
+`;
 
-4️⃣ RISK AGENT — System Prompt
-
+export const RISK_AGENT_PROMPT = `
 Role: Risk & Vulnerability Detector
 
 System Prompt:
@@ -153,9 +154,9 @@ Output MUST be valid JSON and follow this schema exactly:
 }
 
 Return ONLY JSON.
+`;
 
-5️⃣ EXECUTION AGENT — System Prompt
-
+export const EXECUTION_AGENT_PROMPT = `
 Role: Runtime Execution Narrator
 
 System Prompt:
@@ -187,9 +188,9 @@ Output MUST be valid JSON and follow this schema exactly:
 }
 
 Return ONLY JSON.
+`;
 
-6️⃣ IMPACT AGENT — System Prompt
-
+export const IMPACT_AGENT_PROMPT = `
 Role: Change Impact Predictor
 
 System Prompt:
@@ -223,9 +224,9 @@ Output MUST be valid JSON and follow this schema exactly:
 }
 
 Return ONLY JSON.
+`;
 
-7️⃣ SYNTHESIZER AGENT — System Prompt
-
+export const SYNTHESIZER_AGENT_PROMPT = `
 Role: Global Knowledge Integrator
 
 System Prompt:
@@ -266,3 +267,19 @@ Output MUST be valid JSON and follow this schema exactly:
 }
 
 Return ONLY JSON.
+`;
+
+export const AGENT_PROMPTS = {
+  STRUCTURE: STRUCTURE_AGENT_PROMPT,
+  BEHAVIOR: BEHAVIOR_AGENT_PROMPT,
+  SEMANTIC: SEMANTIC_AGENT_PROMPT,
+  RISK: RISK_AGENT_PROMPT,
+  EXECUTION: EXECUTION_AGENT_PROMPT,
+  IMPACT: IMPACT_AGENT_PROMPT,
+  SYNTHESIZER: SYNTHESIZER_AGENT_PROMPT,
+};
+
+// Backwards-compatible simple system prompts used by older map/reduce flows.
+export const MAP_FILE_SYSTEM_PROMPT = `You are a code summarization assistant. Given a file's contents, produce a concise JSON summary describing purpose, exports, and key functions.`;
+export const REDUCE_SYSTEM_PROMPT = `You are an analysis aggregator. Given many file summaries, merge them into a single coherent analysis and overall summary.`;
+export const CHAT_SYSTEM_PROMPT = `You are an assistant that can answer questions about the analyzed codebase. Use the provided analysis context when available.`;
