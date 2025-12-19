@@ -12,6 +12,8 @@ import ImpactSimulator from './components/ImpactSimulator';
 import ExecutionCinematic from './components/ExecutionCinematic';
 import { GlassPanel, NeonButton } from './components/ui';
 import GitHubImporter from './components/GitHubImporter';
+import DashboardLayout from './components/DashboardLayout';
+import ProjectUpload from './components/ProjectUpload';
 import { analyzeRepository, chatWithContext } from './services/geminiService';
 import { FileNode, CodeAnalysisResult, ViewState, AnalysisProgress, ChatMessage } from './types';
 import { trackEvent } from './src/utils/analytics';
@@ -123,6 +125,12 @@ export default function App() {
   const [showDemoNotice, setShowDemoNotice] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  type Project = { id: string; name: string; lastAnalyzed: string; status: string; issues?: number };
+  const [projects, setProjects] = useState<Project[]>([
+    { id: 'p1', name: 'Website', lastAnalyzed: '2025-12-10', status: 'Analysis Complete', issues: 0 },
+    { id: 'p2', name: 'API Server', lastAnalyzed: '2025-12-12', status: '3 Critical Issues', issues: 3 },
+  ]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -258,71 +266,8 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans overflow-hidden relative">
+    <DashboardLayout onNewProject={() => { setAnalysis(null); setFiles([]); setImportSource('local'); fileInputRef.current?.click(); }}>
       <ParticleBackground />
-
-      {/* --- Top Navigation --- */}
-      <header className="h-16 border-b border-slate-800/60 bg-slate-900/60 backdrop-blur-md flex items-center justify-between px-6 z-20">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-            <Terminal size={20} className="text-white" />
-          </div>
-          <div>
-            <h1 className="font-bold text-xl leading-none bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">
-              CODESENSEI
-            </h1>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono mt-1">
-              AI Architect OS
-            </p>
-          </div>
-        </div>
-
-        {analysis && (
-          <nav className="flex bg-slate-800/50 rounded-lg p-1 border border-slate-700/50">
-            {[
-              { id: 'dashboard', icon: Layers, label: 'Overview' },
-              { id: 'brainMap', icon: GitBranch, label: 'Brain Map' },
-              { id: 'riskCenter', icon: AlertTriangle, label: 'Risks' },
-              { id: 'chat', icon: MessageSquare, label: 'Query' },
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setView(item.id as ViewState)}
-                className={`
-                  flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all
-                  ${view === item.id 
-                    ? 'bg-slate-700 text-cyan-400 shadow-sm' 
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'}
-                `}
-              >
-                <item.icon size={14} />
-                {item.label}
-              </button>
-            ))}
-          </nav>
-        )}
-
-        <div className="flex items-center gap-3">
-          {files.length > 0 && !isAnalyzing && !analysis && (
-             <div className="text-xs font-mono text-cyan-400 mr-2 animate-pulse">
-               {files.length} FILES LOADED
-             </div>
-          )}
-          
-          <NeonButton 
-             onClick={() => {
-               setAnalysis(null);
-               setFiles([]);
-               setImportSource('local');
-             }} 
-             variant="blue"
-             icon={FolderOpen}
-             disabled={isAnalyzing}
-          >
-            New Project
-          </NeonButton>
-        </div>
-      </header>
 
       {/* Demo notice banner */}
       {showDemoNotice && (
@@ -379,25 +324,37 @@ export default function App() {
         </div>
       )}
 
-      {/* --- Main Content Area --- */}
       <main className="flex-1 overflow-hidden relative p-6">
-        
         {/* State: Empty / Upload */}
         {!analysis && !isAnalyzing && (
           <div className="h-full flex flex-col items-center justify-start animate-fade-in-up pt-8 px-4">
             <div className="max-w-5xl w-full">
-              {/* Hero */}
-              <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8">
-                <div className="flex items-center justify-center w-20 h-20 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 shadow-lg">
-                  <Terminal size={32} className="text-white" />
+              {/* Replace marketing with functional upload / recent projects */}
+              {projects.length === 0 ? (
+                <ProjectUpload onFilesLoaded={handleFilesLoaded} onImportGithub={() => setImportSource('github')} />
+              ) : (
+                <div>
+                  <h2 className="text-2xl font-bold mb-4">Recent Projects</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {projects.map(p => (
+                      <div key={p.id} className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-semibold text-lg">{p.name}</div>
+                            <div className="text-xs text-slate-400">Last analyzed {p.lastAnalyzed}</div>
+                          </div>
+                          <div className="text-sm font-medium">
+                            <span className="px-2 py-1 rounded text-xs bg-slate-800 border border-slate-700">{p.status}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">CodeSensei</h1>
-                  <p className="text-cyan-300 font-medium mt-1">AI Code Intelligence Operating System</p>
-                  <p className="text-slate-400 mt-3 max-w-2xl">Use multiple specialized AI agents to analyze your repository's structure, behavior, risks, and execution flow — then interact with the results visually or via natural language.</p>
-                </div>
-
-                <div className="w-full md:w-56 flex-shrink-0">
+              )}
+            </div>
+          </div>
+        )}
                   <NeonButton onClick={() => handleFilesLoaded(DEMO_FILES)} variant="blue" className="w-full mb-2">Try Demo</NeonButton>
                   <NeonButton onClick={() => { setImportSource('github'); }} variant="purple" className="w-full">Import GitHub</NeonButton>
                 </div>
