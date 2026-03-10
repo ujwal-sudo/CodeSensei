@@ -1,5 +1,5 @@
 
-import { rateLimitedRequest, sleep } from '../utils/rateLimiter';
+import { scheduleRobustRequest, sleep } from '../utils/rateLimiter';
 
 // Mocking Schema and Type locally to remove @google/genai dependency
 export enum Type {
@@ -37,8 +37,8 @@ export const MODELS = {
   STANDARD: "nvidia/nemotron-3-nano-30b-a3b:free",
   // Mid-tier tasks: Use Nemotron (fast & cheap) - mapping FLASH to Nemotron as well to save OpenAI for complex tasks
   FLASH: "nvidia/nemotron-3-nano-30b-a3b:free",
-  // High-reasoning tasks: Use OpenAI 120b (best reasoning)
-  PRO: "openai/gpt-oss-120b:free"
+  // High-reasoning tasks: Use Nemotron (same model, data policy compatible)
+  PRO: "nvidia/nemotron-3-nano-30b-a3b:free"
 };
 
 // Model tiers for automatic key selection
@@ -168,14 +168,8 @@ export async function callGeminiAgent<T>(
   modelOverride?: string,
   tierOverride?: ModelTier
 ): Promise<T> {
-  // Determine model and tier
+  // Determine model
   const model = modelOverride || DEFAULT_MODEL;
-  const tier = tierOverride || getModelTier(model);
-
-  // Get appropriate API key for this tier
-  const apiKey = getApiKeyForTier(tier);
-
-  console.log(`[BaseAgent] Model: ${model} | Tier: ${tier} | Key: ${tier === ModelTier.STANDARD ? 'SECONDARY' : 'PRIMARY'}`);
 
   // Serialize schema for the prompt
   const schemaStr = JSON.stringify(responseSchema, null, 2);
@@ -187,9 +181,9 @@ ${schemaStr}
 DATA CONTEXT:
 ${userContext}`;
 
-  // Use rate limiter with retry logic for 429 errors
-  return rateLimitedRequest(async () => {
-    console.log('[BaseAgent] Making rate-limited API request...');
+  // Use Robust Request Scheduler
+  return scheduleRobustRequest(async (apiKey) => {
+    console.log(`[BaseAgent] Making robust request with model ${model}...`);
 
     const response = await fetch(OPENROUTER_API_URL, {
       method: "POST",
@@ -212,6 +206,7 @@ ${userContext}`;
 
     if (!response.ok) {
       const text = await response.text();
+      // Throwing error allows scheduleRobustRequest to handle 429/503 retries with new keys
       throw new Error(`OpenRouter API Error: ${response.status} - ${text}`);
     }
 
@@ -234,7 +229,7 @@ ${userContext}`;
       }
     }
     throw new Error("Agent returned empty response");
-  }, { delayMs: 3000, maxRetries: 5, initialBackoffMs: 3000 });
+  });
 }
 
 /**

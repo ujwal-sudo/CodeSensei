@@ -17,6 +17,52 @@ import { orchestrateAgentsStreaming } from './src/agentOrchestrator';
 import { FileNode, CodeAnalysisResult, ViewState, AnalysisProgress, ChatMessage, PartialCodeAnalysisResult, AgentStage } from './types';
 
 
+// Simple markdown renderer for chat messages
+function renderMarkdown(text: string): React.ReactNode {
+  const codeRegex = new RegExp('`([^`]+)`');
+  const lines = text.split('\n');
+  return lines.map((line, lineIdx) => {
+    const parts: React.ReactNode[] = [];
+    let remaining = line;
+    let keyIdx = 0;
+
+    while (remaining.length > 0) {
+      const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
+      const codeMatch = remaining.match(codeRegex);
+
+      const matches = [
+        boldMatch ? { type: 'bold', match: boldMatch, index: boldMatch.index! } : null,
+        codeMatch ? { type: 'code', match: codeMatch, index: codeMatch.index! } : null,
+      ].filter(Boolean).sort((a, b) => a!.index - b!.index);
+
+      if (matches.length === 0) {
+        parts.push(remaining);
+        break;
+      }
+
+      const first = matches[0]!;
+      if (first.index > 0) {
+        parts.push(remaining.substring(0, first.index));
+      }
+
+      if (first.type === 'bold') {
+        parts.push(<strong key={`b-${lineIdx}-${keyIdx++}`} className="font-bold text-white">{first.match[1]}</strong>);
+      } else if (first.type === 'code') {
+        parts.push(<code key={`c-${lineIdx}-${keyIdx++}`} className="bg-slate-700 px-1.5 py-0.5 rounded text-cyan-300 text-xs font-mono">{first.match[1]}</code>);
+      }
+
+      remaining = remaining.substring(first.index + first.match[0].length);
+    }
+
+    return (
+      <React.Fragment key={`line-${lineIdx}`}>
+        {parts}
+        {lineIdx < lines.length - 1 && <br />}
+      </React.Fragment>
+    );
+  });
+}
+
 // Note: webkitdirectory is a non-standard attribute, handled via type casts in JSX
 
 // --- DEMO DATA ---
@@ -531,7 +577,7 @@ export default function App() {
                         ? 'bg-cyan-600 text-white rounded-tr-none'
                         : 'bg-slate-800 text-slate-300 rounded-tl-none'}
                       `}>
-                      {msg.text}
+                      {msg.role === 'model' ? renderMarkdown(msg.text) : msg.text}
                     </div>
                   </div>
                 ))}

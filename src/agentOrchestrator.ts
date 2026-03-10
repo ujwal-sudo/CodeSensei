@@ -111,20 +111,31 @@ export async function* orchestrateAgentsStreaming(
   };
 
   console.log('Agents: Behavior + Semantic running in parallel...');
-  const [behavior, semantic] = await Promise.all([
+  const [behaviorResult, semanticResult] = await Promise.allSettled([
     runBehaviorAgent(chunks),
     runSemanticAgent(chunks)
   ]);
 
+  const behavior = behaviorResult.status === 'fulfilled' ? behaviorResult.value : null;
+  const semantic = semanticResult.status === 'fulfilled' ? semanticResult.value : null;
+
+  if (behaviorResult.status === 'rejected') console.warn('[Orchestrator] Behavior Agent failed:', behaviorResult.reason?.message);
+  if (semanticResult.status === 'rejected') console.warn('[Orchestrator] Semantic Agent failed:', semanticResult.reason?.message);
+
+  const phase3Agents = [
+    ...(behavior ? ['behavior'] : []),
+    ...(semantic ? ['semantic'] : [])
+  ];
+
   partialResult = {
     ...partialResult,
-    completedAgents: [...(partialResult.completedAgents || []), 'behavior', 'semantic']
+    completedAgents: [...(partialResult.completedAgents || []), ...phase3Agents]
   };
 
-  // YIELD 2: Behavior and Semantic complete
+  // YIELD 2: Behavior and Semantic complete (or partially)
   yield {
     stage: 'parallel_reasoning',
-    message: 'Behavior and semantic analysis complete',
+    message: behavior && semantic ? 'Behavior and semantic analysis complete' : 'Parallel analysis complete (partial)',
     partialResult: { ...partialResult }
   };
 
@@ -136,38 +147,53 @@ export async function* orchestrateAgentsStreaming(
   };
 
   console.log('Agents: Risk + Execution running in parallel...');
-  const [risk, execution] = await Promise.all([
+  const [riskResult, executionResult] = await Promise.allSettled([
     runRiskAgent(chunks),
     runExecutionAgent(chunks, structure.modules.map(m => m.name).join(', '))
   ]);
 
-  // Add risks to partial result
+  const risk = riskResult.status === 'fulfilled' ? riskResult.value : null;
+  const execution = executionResult.status === 'fulfilled' ? executionResult.value : null;
+
+  if (riskResult.status === 'rejected') console.warn('[Orchestrator] Risk Agent failed:', riskResult.reason?.message);
+  if (executionResult.status === 'rejected') console.warn('[Orchestrator] Execution Agent failed:', executionResult.reason?.message);
+
+  const phase4Agents = [
+    ...(risk ? ['risk'] : []),
+    ...(execution ? ['execution'] : [])
+  ];
+
+  // Add risks to partial result (if available)
   partialResult = {
     ...partialResult,
-    risks: risk.risks.map(r => ({
-      id: r.id,
-      title: r.id,
-      description: r.description,
-      severity: r.severity as 'critical' | 'high' | 'medium' | 'low',
-      location: r.location,
-      mitigation: r.mitigation
-    })),
-    executionFlow: execution.steps.map(s => ({
-      step: s.step,
-      location: s.location,
-      action: s.action,
-      stateChanges: s.stateChanges,
-      narrative: s.narrative,
-      filesInvolved: s.files,
-      approxTimeMs: s.approx_time_ms
-    })),
-    completedAgents: [...(partialResult.completedAgents || []), 'risk', 'execution']
+    ...(risk ? {
+      risks: risk.risks.map(r => ({
+        id: r.id,
+        title: r.id,
+        description: r.description,
+        severity: r.severity as 'critical' | 'high' | 'medium' | 'low',
+        location: r.location,
+        mitigation: r.mitigation
+      }))
+    } : {}),
+    ...(execution ? {
+      executionFlow: execution.steps.map(s => ({
+        step: s.step,
+        location: s.location,
+        action: s.action,
+        stateChanges: s.stateChanges,
+        narrative: s.narrative,
+        filesInvolved: s.files,
+        approxTimeMs: s.approx_time_ms
+      }))
+    } : {}),
+    completedAgents: [...(partialResult.completedAgents || []), ...phase4Agents]
   };
 
-  // YIELD 3: Risks are available!
+  // YIELD 3: Risks are available (or partial)
   yield {
     stage: 'execution_simulation',
-    message: 'Risk analysis complete - viewing risks',
+    message: risk ? 'Risk analysis complete' : 'Execution analysis complete (risks pending)',
     partialResult: { ...partialResult }
   };
 
@@ -186,30 +212,43 @@ export async function* orchestrateAgentsStreaming(
       modules: structure.modules.map(m => m.name),
       entry_points: structure.entrypoints || []
     },
-    behavior_summary: behavior.call_graph?.slice(0, 20) || [],
-    semantic_summary: semantic.apis?.map((a: any) => a.name || a).slice(0, 20) || [],
-    risk_summary: risk.risks.map(r => ({ id: r.id, severity: r.severity })),
-    execution_summary: execution.steps.slice(0, 10).map(s => s.desc || s.action)
+    behavior_summary: behavior?.call_graph?.slice(0, 20) || [],
+    semantic_summary: semantic?.apis?.map((a: any) => a.name || a).slice(0, 20) || [],
+    risk_summary: risk?.risks?.map(r => ({ id: r.id, severity: r.severity })) || [],
+    execution_summary: execution?.steps?.slice(0, 10).map(s => s.desc || s.action) || []
   };
 
   console.log(`[Orchestrator] Optimized context size: ${JSON.stringify(optimizedContext).length} chars`);
-  const synthesizerOutput = await runSynthesizerAgent(optimizedContext);
+
+  let synthesizerOutput: any = null;
+  try {
+    synthesizerOutput = await runSynthesizerAgent(optimizedContext);
+  } catch (synthError: any) {
+    console.warn('[Orchestrator] Synthesizer failed:', synthError.message);
+    // Create fallback summary from structure data
+    synthesizerOutput = {
+      summary: `Codebase with ${structure.modules.length} modules: ${structure.modules.map(m => m.name).join(', ')}. ${structure.files?.length || 0} files analyzed.`,
+      architecture: partialResult.architecture || 'Architecture analysis incomplete.',
+      techStack: [],
+      graphData: partialResult.graphData || { nodes: [], links: [] }
+    };
+  }
 
   // ============ FINAL: Merge everything ============
   const finalResult: CodeAnalysisResult = {
     summary: synthesizerOutput.summary,
     architecture: synthesizerOutput.architecture,
-    techStack: synthesizerOutput.techStack,
-    graphData: synthesizerOutput.graphData,
-    risks: risk.risks.map(r => ({
+    techStack: synthesizerOutput.techStack || [],
+    graphData: synthesizerOutput.graphData || partialResult.graphData || { nodes: [], links: [] },
+    risks: risk ? risk.risks.map(r => ({
       id: r.id,
       title: r.id,
       description: r.description,
       severity: r.severity as 'critical' | 'high' | 'medium' | 'low',
       location: r.location,
       mitigation: r.mitigation
-    })),
-    executionFlow: execution.steps.map(s => ({
+    })) : (partialResult.risks || []),
+    executionFlow: execution ? execution.steps.map(s => ({
       step: s.step,
       location: s.location,
       action: s.action,
@@ -217,14 +256,15 @@ export async function* orchestrateAgentsStreaming(
       narrative: s.narrative,
       filesInvolved: s.files,
       approxTimeMs: s.approx_time_ms
-    }))
+    })) : (partialResult.executionFlow || [])
   };
 
   // YIELD 4: Complete!
+  const allCompleted = [...(partialResult.completedAgents || []), ...(synthesizerOutput ? ['synthesizer'] : [])];
   yield {
     stage: 'complete',
     message: 'Analysis complete!',
-    partialResult: { ...finalResult, completedAgents: ['structure', 'behavior', 'semantic', 'risk', 'execution', 'synthesizer'], isComplete: true }
+    partialResult: { ...finalResult, completedAgents: allCompleted, isComplete: true }
   };
 
   console.log('--- STREAMING ORCHESTRATION COMPLETE ---');

@@ -2,20 +2,23 @@
  * Rate Limiter Utility for OpenRouter API
  * 
  * Provides:
- * - Request queue with configurable delay between requests
- * - Retry logic with exponential backoff for 429 errors
- * - Centralized rate limiting for all API calls
+ * - Request queue with concurrency control (p-queue)
+ * - Robust retry logic with Key Rotation
+ * - Centralized rate limiting
  */
 
-// Configuration
-const DEFAULT_DELAY_MS = 3000; // 3 seconds between requests
-const MAX_RETRIES = 5;
-const INITIAL_BACKOFF_MS = 3000; // Start with 3 second backoff
-const BACKOFF_MULTIPLIER = 2; // Double the backoff each retry
+import PQueue from 'p-queue';
+import { keyManager } from './keyManager';
 
-// Global request queue state
-let lastRequestTime = 0;
-let requestQueue: Promise<void> = Promise.resolve();
+// Configuration
+const DEFAULT_DELAY_MS = 2000;
+const MAX_RETRIES = 5;
+const INITIAL_BACKOFF_MS = 2000;
+const BACKOFF_MULTIPLIER = 2;
+const QUEUE_CONCURRENCY = 3;
+
+// Initialize Request Queue
+const queue = new PQueue({ concurrency: QUEUE_CONCURRENCY });
 
 /**
  * Sleep for a given number of milliseconds
@@ -24,119 +27,82 @@ export const sleep = (ms: number): Promise<void> =>
     new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Ensures minimum delay between API requests
- * Call this before making any API request
+ * Schedule a robust request with:
+ * 1. Concurrency Control (Queue)
+ * 2. Automatic Key Rotation on 429/503
+ * 3. Exponential Backoff
+ * 
+ * @param taskCreator - A function that takes an API Key and returns a Promise
  */
-export const waitForRateLimit = async (delayMs: number = DEFAULT_DELAY_MS): Promise<void> => {
-    const now = Date.now();
-    const timeSinceLastRequest = now - lastRequestTime;
-
-    if (timeSinceLastRequest < delayMs) {
-        const waitTime = delayMs - timeSinceLastRequest;
-        console.log(`[RateLimiter] Waiting ${waitTime}ms before next request...`);
-        await sleep(waitTime);
-    }
-
-    lastRequestTime = Date.now();
-};
-
-/**
- * Queue a request to ensure sequential execution with delays
- * Wraps any async function to be rate-limited
- */
-export const queueRequest = async <T>(
-    requestFn: () => Promise<T>,
-    delayMs: number = DEFAULT_DELAY_MS
+export const scheduleRobustRequest = async <T>(
+    taskCreator: (apiKey: string) => Promise<T>
 ): Promise<T> => {
-    // Chain this request after all previous requests
-    const previousQueue = requestQueue;
 
-    let resolveQueue: () => void;
-    requestQueue = new Promise(resolve => { resolveQueue = resolve; });
+    // Wrap the task in the queue
+    return queue.add(async () => {
+        let lastError: Error | null = null;
+        let backoffMs = INITIAL_BACKOFF_MS;
 
-    try {
-        // Wait for previous requests to complete
-        await previousQueue;
+        for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+            try {
+                // 1. Get Key (Rotates automatically)
+                const apiKey = keyManager.getNextKey();
 
-        // Wait for rate limit
-        await waitForRateLimit(delayMs);
+                // 2. Execute Task
+                return await taskCreator(apiKey);
 
-        // Execute the request
-        return await requestFn();
-    } finally {
-        // Signal that this request is done
-        resolveQueue!();
-    }
-};
+            } catch (error: any) {
+                lastError = error;
 
-/**
- * Executes a request with retry logic and exponential backoff
- * Specifically handles 429 rate limit errors
- */
-export const withRetry = async <T>(
-    requestFn: () => Promise<T>,
-    maxRetries: number = MAX_RETRIES,
-    initialBackoffMs: number = INITIAL_BACKOFF_MS
-): Promise<T> => {
-    let lastError: Error | null = null;
-    let backoffMs = initialBackoffMs;
+                // Check if it's a retryable error (401 = bad key, 429 = rate limit, 503/500 = server)
+                const isRetryable =
+                    error.message?.includes('401') || // Bad key - rotate to next
+                    error.message?.includes('User not found') ||
+                    error.message?.includes('429') ||
+                    error.message?.includes('rate limit') ||
+                    error.message?.includes('Rate Limit') ||
+                    error.message?.includes('Too Many Requests') ||
+                    error.message?.includes('503') ||
+                    error.message?.includes('500'); // sometimes 500s are transient
 
-    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
-        try {
-            return await requestFn();
-        } catch (error: any) {
-            lastError = error;
+                if (isRetryable && attempt <= MAX_RETRIES) {
+                    console.warn(`[RateLimiter] Error (${error.message}). Switching keys and backing off for ${backoffMs}ms...`);
+                    await sleep(backoffMs);
+                    backoffMs *= BACKOFF_MULTIPLIER;
+                    continue; // Retry with next key
+                }
 
-            // Check if it's a rate limit error (429)
-            const isRateLimitError =
-                error.message?.includes('429') ||
-                error.message?.includes('rate limit') ||
-                error.message?.includes('Rate Limit') ||
-                error.message?.includes('Too Many Requests');
-
-            if (isRateLimitError && attempt <= maxRetries) {
-                console.warn(`[RateLimiter] Rate limit hit (attempt ${attempt}/${maxRetries + 1}). Backing off for ${backoffMs}ms...`);
-                await sleep(backoffMs);
-                backoffMs *= BACKOFF_MULTIPLIER; // Exponential backoff
-                continue;
+                // If not retryable or retries exhausted
+                throw error;
             }
-
-            // For non-rate-limit errors or if we've exhausted retries, throw
-            throw error;
         }
-    }
-
-    throw lastError;
+        throw lastError || new Error("Request failed after retries.");
+    });
 };
 
-/**
- * Combined utility: Queue request + Retry logic
- * Use this for all OpenRouter API calls
- */
+// Deprecated: Legacy support if needed, but better to use scheduleRobustRequest
 export const rateLimitedRequest = async <T>(
     requestFn: () => Promise<T>,
-    options: {
-        delayMs?: number;
-        maxRetries?: number;
-        initialBackoffMs?: number;
-    } = {}
+    options: any = {}
 ): Promise<T> => {
-    const {
-        delayMs = DEFAULT_DELAY_MS,
-        maxRetries = MAX_RETRIES,
-        initialBackoffMs = INITIAL_BACKOFF_MS
-    } = options;
-
-    return queueRequest(
-        () => withRetry(requestFn, maxRetries, initialBackoffMs),
-        delayMs
-    );
-};
-
-/**
- * Reset the rate limiter state (useful for testing)
- */
-export const resetRateLimiter = (): void => {
-    lastRequestTime = 0;
-    requestQueue = Promise.resolve();
+    // Adapter to use new system, but without key injection if requestFn already has it
+    // This effectively just queues it and retries, but can't rotate key inside requestFn
+    return queue.add(async () => {
+        // We can't rotate keys here because requestFn is a closure with key already bound presumably
+        // So we just retry the closure
+        let backoffMs = INITIAL_BACKOFF_MS;
+        for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
+            try {
+                return await requestFn();
+            } catch (e: any) {
+                if (e.message?.includes('429') && attempt <= MAX_RETRIES) {
+                    await sleep(backoffMs);
+                    backoffMs *= 2;
+                    continue;
+                }
+                throw e;
+            }
+        }
+        throw new Error("Failed");
+    });
 };

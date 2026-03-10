@@ -9,17 +9,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
-    "lucide-react": "^0.559.0",
-    "d3": "^7.9.0",
-    "recharts": "^3.5.1",
-    "buffer": "^6.0.3",
     "@octokit/rest": "^22.0.1",
+    "buffer": "^6.0.3",
+    "cors": "^2.8.5",
+    "d3": "^7.9.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "cors": "^2.8.5",
+    "lucide-react": "^0.559.0",
+    "p-queue": "^9.1.0",
     "path": "^0.12.7",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "recharts": "^3.5.1",
     "url": "^0.11.4"
   },
   "devDependencies": {
