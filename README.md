@@ -93,7 +93,7 @@ All agents share a common `baseAgent.ts` with robust JSON parsing (including tru
 
 ### Installation
 ```bash
-git clone https://github.com/your-username/codesensei.git
+git clone https://github.com/ujwal-sudo/codesensei.git
 cd codesensei
 npm install
 ```
