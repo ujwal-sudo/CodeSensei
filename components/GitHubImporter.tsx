@@ -1,7 +1,6 @@
 
-import React, { useState } from 'react';
-import { Github, Download, AlertCircle, CheckCircle, Loader2, Key, Cloud, CloudOff } from 'lucide-react';
-import { GlassPanel, NeonButton } from './ui';
+import React, { useMemo, useState } from 'react';
+import { AlertCircle, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { importRepository } from '../services/githubService';
 
 interface GitHubImporterProps {
@@ -17,6 +16,10 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [fetchSource, setFetchSource] = useState<'backend' | 'octokit' | null>(null);
+  const [repoPath, setRepoPath] = useState('');
+  const [focused, setFocused] = useState(false);
+
+  const normalizedRepoPath = useMemo(() => repoPath.replace(/^github\.com\s*\/\s*/i, '').trim(), [repoPath]);
 
   const handleImport = async () => {
     if (!url) {
@@ -32,14 +35,13 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
     try {
       const result = await importRepository(
         { url, branch, token },
-        (statusUpdate) => setStatus(statusUpdate) // Pass status callback
+        (statusUpdate) => setStatus(statusUpdate)
       );
 
       if (result.success && result.data) {
         setFetchSource(result.source || 'backend');
         setStatus(`✓ Imported ${result.data.files.length} files via ${result.source === 'octokit' ? 'Browser' : 'Backend'}`);
 
-        // Short delay to show success message before transition
         setTimeout(() => {
           if (result.data) {
             onImportComplete(result.data.files);
@@ -49,9 +51,7 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
         setError(result.error || "Import failed");
         setLoading(false);
       }
-
     } catch (err: any) {
-      // Handle the final fallback error
       setLoading(false);
       console.warn('[GitHubImporter] All fetch methods failed:', err.message);
       onError(err.message || "Failed to import. Switching to demo mode.");
@@ -59,87 +59,164 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
   };
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-4">
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Github className="h-5 w-5 text-slate-500" />
-        </div>
+    <div style={{ width: '100%' }}>
+      {/* Input bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          background: 'rgba(19,17,31,0.9)',
+          border: `1px solid ${focused ? 'rgba(124,58,237,0.7)' : 'rgba(124,58,237,0.3)'}`,
+          borderRadius: 12,
+          padding: '6px 6px 6px 16px',
+          boxShadow: focused ? '0 0 0 3px rgba(124,58,237,0.1)' : 'none',
+          transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+        }}
+      >
+        <span
+          style={{
+            fontSize: 12,
+            color: '#4a4460',
+            marginRight: 4,
+            whiteSpace: 'nowrap',
+            fontFamily: 'var(--font-mono)',
+          }}
+        >
+          github.com /
+        </span>
         <input
           type="text"
-          className="w-full bg-slate-950/50 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors disabled:opacity-50"
-          placeholder="https://github.com/owner/repo"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          className="cs-gh-input"
+          value={repoPath}
+          onChange={(e) => {
+            const next = e.target.value;
+            setRepoPath(next);
+            const path = next.replace(/^github\.com\s*\/\s*/i, '').trim().replace(/^\/+/, '');
+            setUrl(path ? `https://github.com/${path}` : '');
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            if (!loading) handleImport();
+          }}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           disabled={loading}
+          placeholder="owner / repository"
+          style={{
+            flex: 1,
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
+            fontSize: 13,
+            color: 'var(--text-primary)',
+            fontFamily: 'var(--font-mono)',
+            minWidth: 0,
+          }}
         />
+        <button
+          type="button"
+          onClick={handleImport}
+          disabled={loading}
+          style={{
+            padding: '8px 18px',
+            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: 600,
+            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+            color: '#fff',
+            border: 'none',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {loading ? <Loader2 size={14} className="spinner" /> : null}
+          Analyze →
+        </button>
       </div>
 
-      <div className="flex gap-2">
-        <input
-          type="text"
-          className="flex-1 bg-slate-950/50 border border-slate-700 rounded-xl py-3 px-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors disabled:opacity-50"
-          placeholder="Branch (default: main)"
-          value={branch}
-          onChange={(e) => setBranch(e.target.value)}
-          disabled={loading}
-        />
-        <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Key className="h-4 w-4 text-slate-500" />
-          </div>
-          <input
-            type="password"
-            className="w-full bg-slate-950/50 border border-slate-700 rounded-xl py-3 pl-9 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors disabled:opacity-50"
-            placeholder="Token (Optional)"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            disabled={loading}
-          />
-        </div>
+      {/* Or divider */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0', color: '#2e2a45', fontSize: 11 }}>
+        <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+        <div style={{ whiteSpace: 'nowrap' }}>or try an example</div>
+        <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
       </div>
 
+      {/* Examples */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {['vercel/next.js', 'facebook/react', 'supabase/supabase'].map((ex) => (
+          <button
+            key={ex}
+            type="button"
+            onClick={() => {
+              setRepoPath(ex);
+              setUrl(`https://github.com/${ex}`);
+              setError(null);
+            }}
+            style={{
+              padding: '4px 10px',
+              borderRadius: 6,
+              fontSize: 11,
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.07)',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            {ex}
+          </button>
+        ))}
+      </div>
+
+      {/* Error */}
       {error && (
-        <div className="p-3 bg-red-950/30 border border-red-500/30 rounded-lg flex items-start gap-2 text-xs text-red-200">
-          <AlertCircle size={16} className="shrink-0 mt-0.5" />
+        <div style={{
+          padding: 'var(--space-3)',
+          background: 'rgba(226,75,74,0.10)',
+          border: '1px solid rgba(226,75,74,0.35)',
+          borderRadius: 'var(--radius-md)',
+          display: 'flex', alignItems: 'start', gap: 'var(--space-2)',
+          fontSize: 12, color: 'var(--red)',
+          marginTop: 12,
+        }}>
+          <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
           <span>{error}</span>
         </div>
       )}
 
+      {/* Loading Status */}
       {loading && !error && (
-        <div className="p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg">
-          <div className="flex items-center gap-2 text-xs font-mono">
-            <Loader2 size={14} className="animate-spin text-cyan-400" />
-            <span className="text-slate-300">{status}</span>
+        <div style={{
+          padding: 'var(--space-3)',
+          background: 'rgba(19,17,31,0.7)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: 'var(--radius-md)',
+          marginTop: 12,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+            <Loader2 size={14} className="spinner" style={{ color: 'var(--purple-strong)' }} />
+            <span style={{ color: 'var(--text-secondary)' }}>{status}</span>
           </div>
           {status.includes('Browser') && (
-            <div className="flex items-center gap-2 mt-2 text-[10px] text-amber-400">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-2)', fontSize: 10, color: 'var(--amber)' }}>
               <CloudOff size={12} />
-              <span>Backend offline - using GitHub API directly</span>
+              <span>Backend offline — using GitHub API directly</span>
             </div>
           )}
         </div>
       )}
 
+      {/* Fetch Source */}
       {fetchSource && !loading && (
-        <div className="flex items-center gap-2 text-xs text-green-400">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 12, color: 'var(--green)', marginTop: 12 }}>
           {fetchSource === 'backend' ? <Cloud size={14} /> : <CloudOff size={14} />}
           <span>Fetched via {fetchSource === 'backend' ? 'Backend Server' : 'Browser (Octokit)'}</span>
         </div>
       )}
-
-      <NeonButton
-        onClick={handleImport}
-        loading={loading}
-        variant="purple"
-        className="w-full"
-        icon={Download}
-      >
-        Import Repository
-      </NeonButton>
-
-      <p className="text-[10px] text-slate-600 text-center">
-        💡 Public repos work without a token. Private repos require a GitHub token.
-      </p>
     </div>
   );
 };

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, SkipForward, SkipBack, Circle } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack } from 'lucide-react';
 import { ExecutionStep } from '../types';
 
 interface Props {
@@ -27,7 +27,7 @@ const ExecutionCinematic: React.FC<Props> = ({ steps, onStepChange }) => {
           }
           return prev + 1;
         });
-      }, 2000); // 2 seconds per step for cinematic feel
+      }, 2000);
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);
     }
@@ -36,70 +36,70 @@ const ExecutionCinematic: React.FC<Props> = ({ steps, onStepChange }) => {
     };
   }, [isPlaying, steps.length]);
 
-  const togglePlay = () => setIsPlaying(!isPlaying);
-
   return (
-    <div className="h-full flex flex-col">
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Player Controls */}
-      <div className="glass-panel p-4 mb-4 rounded-xl flex items-center justify-between border border-neon-green/20">
-        <div className="flex items-center gap-4">
-          <button onClick={() => setCurrentStep(Math.max(0, currentStep - 1))} className="text-slate-400 hover:text-white transition-colors">
+      <div className="glass-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+          <button className="icon-btn" onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}>
             <SkipBack size={20} />
           </button>
-          <button 
-            onClick={togglePlay} 
-            className="w-12 h-12 rounded-full bg-neon-green text-black flex items-center justify-center hover:shadow-[0_0_15px_rgba(0,255,157,0.5)] transition-all"
+          <button
+            onClick={() => setIsPlaying(!isPlaying)}
+            style={{
+              width: 48, height: 48, borderRadius: '50%',
+              background: 'var(--accent-indigo)', border: 'none', color: 'var(--text-primary)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+              transition: 'box-shadow 200ms',
+              boxShadow: '0 0 15px rgba(108,99,255,0.4)',
+            }}
           >
-            {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-1" />}
+            {isPlaying ? <Pause size={20} /> : <Play size={20} style={{ marginLeft: 2 }} />}
           </button>
-          <button onClick={() => setCurrentStep(Math.min(steps.length - 1, currentStep + 1))} className="text-slate-400 hover:text-white transition-colors">
+          <button className="icon-btn" onClick={() => setCurrentStep(Math.min(steps.length - 1, currentStep + 1))}>
             <SkipForward size={20} />
           </button>
         </div>
-        
-        <div className="text-right">
-          <p className="text-xs text-neon-green font-mono uppercase font-bold">Execution Step {currentStep + 1} / {steps.length}</p>
-          <p className="text-slate-400 text-xs">{steps[currentStep]?.location}</p>
+        <div style={{ textAlign: 'right' }}>
+          <p className="exec-step-number">Execution Step {currentStep + 1} / {steps.length}</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+            {steps[currentStep]?.location}
+          </p>
         </div>
       </div>
 
-      {/* Timeline Visualization */}
-      <div className="flex-1 overflow-y-auto relative pr-2 space-y-0">
-        <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-slate-800" />
-        
+      {/* Timeline */}
+      <div className="exec-timeline" style={{ flex: 1 }}>
+        <div className="exec-timeline-line" />
         {steps.map((step, idx) => (
-          <div 
-            key={idx} 
-            className={`relative pl-14 py-4 cursor-pointer group transition-all duration-500 ${
-              idx === currentStep ? 'opacity-100 scale-100' : 'opacity-40 scale-95 grayscale'
-            }`}
-            onClick={() => {
-              setCurrentStep(idx);
-              setIsPlaying(false);
+          <div
+            key={idx}
+            className="exec-step"
+            style={{
+              opacity: idx === currentStep ? 1 : 0.4,
+              cursor: 'pointer',
+              transition: 'opacity 500ms',
             }}
+            onClick={() => { setCurrentStep(idx); setIsPlaying(false); }}
           >
-            {/* Timeline Node */}
-            <div className={`absolute left-[20px] top-6 w-3 h-3 rounded-full border-2 transition-all duration-300 z-10 ${
-              idx === currentStep ? 'bg-neon-green border-neon-green shadow-[0_0_10px_#00ff9d]' : 
-              idx < currentStep ? 'bg-slate-700 border-slate-700' : 'bg-space-950 border-slate-700'
-            }`} />
-
-            <div className={`glass-panel p-5 rounded-xl border transition-colors ${
-              idx === currentStep ? 'border-neon-green/50 bg-slate-900/80' : 'border-white/5'
-            }`}>
-              <div className="flex justify-between items-start mb-2">
-                <span className={`font-mono text-xs font-bold ${idx === currentStep ? 'text-neon-green' : 'text-slate-500'}`}>
-                  {step.approxTimeMs}ms
-                </span>
-                <span className="text-xs text-slate-500 font-mono">{step.location}</span>
+            <div className={`exec-step-node ${idx === currentStep ? 'exec-step-node--active' : ''}`}
+              style={{
+                background: idx < currentStep ? 'var(--text-muted)' : idx === currentStep ? 'var(--accent-indigo)' : 'var(--bg-void)',
+                border: idx > currentStep ? '2px solid var(--bg-border)' : 'none',
+                boxShadow: idx === currentStep ? '0 0 10px var(--accent-indigo)' : 'none',
+              }}
+            />
+            <div className={`exec-step-card ${idx === currentStep ? 'exec-step-card--active' : ''}`}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 'var(--space-2)' }}>
+                <span className="exec-step-number">{step.approxTimeMs}ms</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{step.location}</span>
               </div>
-              
-              <h4 className="text-lg font-bold text-slate-200 mb-1">{step.action}</h4>
-              <p className="text-slate-400 text-sm">{step.narrative}</p>
-              
+              <h4 className="exec-step-title">{step.action}</h4>
+              <p className="exec-step-desc">{step.narrative}</p>
               {step.stateChanges && idx === currentStep && (
-                <div className="mt-3 p-3 bg-black/50 rounded border-l-2 border-neon-green font-mono text-xs text-neon-blue animate-pulse-slow">
-                  <span className="text-slate-500">$ state_mutation: </span>{step.stateChanges}
+                <div className="exec-step-code">
+                  <span style={{ color: 'var(--text-muted)' }}>$ state_mutation: </span>
+                  <span style={{ color: 'var(--accent-cyan)' }}>{step.stateChanges}</span>
                 </div>
               )}
             </div>

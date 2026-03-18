@@ -2,46 +2,51 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 
-export const GlassPanel: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`bg-slate-900/40 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-xl ${className}`}>
+/** Glass Card — the universal card surface */
+export const GlassPanel: React.FC<{ children: React.ReactNode; className?: string; style?: React.CSSProperties }> = ({ children, className = '', style }) => (
+  <div className={`glass-card ${className}`} style={style}>
     {children}
   </div>
 );
 
+/** Primary CTA button — indigo background */
 export const NeonButton: React.FC<{
   onClick: () => void;
   disabled?: boolean;
   loading?: boolean;
   icon?: React.ElementType;
   children: React.ReactNode;
-  variant?: 'blue' | 'purple' | 'green' | 'red';
+  variant?: 'primary' | 'ghost';
   className?: string;
-}> = ({ onClick, disabled, loading, icon: Icon, children, variant = 'blue', className = '' }) => {
+}> = ({ onClick, disabled, loading, icon: Icon, children, variant = 'primary', className = '' }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled || loading}
+    className={`${variant === 'ghost' ? 'btn-ghost' : 'btn-primary'} ${className}`}
+  >
+    {loading ? <Loader2 size={16} className="spinner" /> : Icon && <Icon size={16} />}
+    {children}
+  </button>
+);
 
-  const colors = {
-    blue: 'from-cyan-500 to-blue-600 shadow-cyan-500/20 hover:shadow-cyan-500/40 border-cyan-400/20',
-    purple: 'from-purple-500 to-indigo-600 shadow-purple-500/20 hover:shadow-purple-500/40 border-purple-400/20',
-    green: 'from-emerald-500 to-teal-600 shadow-emerald-500/20 hover:shadow-emerald-500/40 border-emerald-400/20',
-    red: 'from-red-500 to-pink-600 shadow-red-500/20 hover:shadow-red-500/40 border-red-400/20',
-  };
-
+/** Severity Pill */
+export const SeverityPill: React.FC<{ severity: string }> = ({ severity }) => {
+  const s = severity.toLowerCase();
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled || loading}
-      className={`
-        relative px-5 py-2.5 rounded-xl font-bold text-sm tracking-wide text-white
-        bg-gradient-to-r ${colors[variant]}
-        border-t border-l
-        flex items-center justify-center gap-2
-        transition-all duration-300 transform
-        hover:-translate-y-0.5 active:scale-95 active:translate-y-0
-        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
-        ${className}
-      `}
-    >
-      {loading ? <Loader2 size={16} className="animate-spin" /> : Icon && <Icon size={16} />}
-      {children}
-    </button>
+    <span className={`severity-pill severity-pill--${s}`}>
+      <span style={{
+        width: 6, height: 6, borderRadius: '50%', display: 'inline-block',
+        background: s === 'critical' ? '#FF3B5C' : s === 'high' ? '#FF6B2B' : s === 'medium' ? '#FFB800' : '#00FF87'
+      }} />
+      {severity.toUpperCase()}
+    </span>
   );
 };
+
+/** Card Header with accent bar */
+export const CardHeader: React.FC<{ title: string; cyan?: boolean }> = ({ title, cyan }) => (
+  <div className="card-header">
+    <div className={`card-accent-bar${cyan ? ' card-accent-bar--cyan' : ''}`} />
+    <span className="card-title">{title}</span>
+  </div>
+);

@@ -1,23 +1,22 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Terminal, Zap, Activity, FolderOpen, Layers,
-  GitBranch, MessageSquare, AlertTriangle,
-  ChevronRight, Brain, Github, UploadCloud,
-  CheckCircle, Loader2
+  Layers, Activity, Brain, GitBranch, MessageSquare, AlertTriangle,
+  ArrowUp, Github, UploadCloud, CheckCircle, Loader2, Settings,
+  Shield, Zap, Terminal, Tag, Play, Sparkles, FolderOpen
 } from 'lucide-react';
-import ParticleBackground from './components/ParticleBackground';
 import BrainMap from './components/BrainMap';
 import ImpactSimulator from './components/ImpactSimulator';
 import ExecutionCinematic from './components/ExecutionCinematic';
-import { GlassPanel, NeonButton } from './components/ui';
+import { GlassPanel, NeonButton, SeverityPill, CardHeader } from './components/ui';
 import GitHubImporter from './components/GitHubImporter';
 import { chatWithContext } from './services/geminiService';
 import { orchestrateAgentsStreaming } from './src/agentOrchestrator';
-import { FileNode, CodeAnalysisResult, ViewState, AnalysisProgress, ChatMessage, PartialCodeAnalysisResult, AgentStage } from './types';
+import { FileNode, CodeAnalysisResult, ViewState, ChatMessage, PartialCodeAnalysisResult, AgentStage } from './types';
 
+type StarDot = { xPct: number; yPct: number; sizePx: number; opacity: number };
 
-// Simple markdown renderer for chat messages
+// ── Simple markdown renderer ──
 function renderMarkdown(text: string): React.ReactNode {
   const codeRegex = new RegExp('`([^`]+)`');
   const lines = text.split('\n');
@@ -25,35 +24,23 @@ function renderMarkdown(text: string): React.ReactNode {
     const parts: React.ReactNode[] = [];
     let remaining = line;
     let keyIdx = 0;
-
     while (remaining.length > 0) {
       const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
       const codeMatch = remaining.match(codeRegex);
-
       const matches = [
         boldMatch ? { type: 'bold', match: boldMatch, index: boldMatch.index! } : null,
         codeMatch ? { type: 'code', match: codeMatch, index: codeMatch.index! } : null,
       ].filter(Boolean).sort((a, b) => a!.index - b!.index);
-
-      if (matches.length === 0) {
-        parts.push(remaining);
-        break;
-      }
-
+      if (matches.length === 0) { parts.push(remaining); break; }
       const first = matches[0]!;
-      if (first.index > 0) {
-        parts.push(remaining.substring(0, first.index));
-      }
-
+      if (first.index > 0) parts.push(remaining.substring(0, first.index));
       if (first.type === 'bold') {
-        parts.push(<strong key={`b-${lineIdx}-${keyIdx++}`} className="font-bold text-white">{first.match[1]}</strong>);
+        parts.push(<strong key={`b-${lineIdx}-${keyIdx++}`} style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{first.match[1]}</strong>);
       } else if (first.type === 'code') {
-        parts.push(<code key={`c-${lineIdx}-${keyIdx++}`} className="bg-slate-700 px-1.5 py-0.5 rounded text-cyan-300 text-xs font-mono">{first.match[1]}</code>);
+        parts.push(<code key={`c-${lineIdx}-${keyIdx++}`} className="highlighted-term">{first.match[1]}</code>);
       }
-
       remaining = remaining.substring(first.index + first.match[0].length);
     }
-
     return (
       <React.Fragment key={`line-${lineIdx}`}>
         {parts}
@@ -63,35 +50,47 @@ function renderMarkdown(text: string): React.ReactNode {
   });
 }
 
-// Note: webkitdirectory is a non-standard attribute, handled via type casts in JSX
+// ── Hexagon SVG for agent pipeline ──
+const HexSvg: React.FC<{ fill: string; stroke: string }> = ({ fill, stroke }) => (
+  <svg viewBox="0 0 52 52" width="52" height="52" style={{ position: 'absolute', inset: 0 }}>
+    <polygon
+      points="26,2 49,14 49,38 26,50 3,38 3,14"
+      fill={fill}
+      stroke={stroke}
+      strokeWidth="1.5"
+    />
+  </svg>
+);
 
-// --- DEMO DATA ---
+// ── Demo data ──
 const DEMO_FILES: FileNode[] = [
-  {
-    path: "src/server.ts",
-    language: "typescript",
-    size: 1200,
-    content: `import express from 'express';\nimport { createServer } from 'http';\nimport { Server } from 'socket.io';\n\nconst app = express();\nconst httpServer = createServer(app);\nconst io = new Server(httpServer);\n\nio.on('connection', (socket) => {\n  console.log('Client connected');\n  socket.on('message', (data) => {\n    io.emit('message', data);\n  });\n});\n\nhttpServer.listen(3000, () => {\n  console.log('Server running on 3000');\n});`
-  },
-  {
-    path: "src/auth/authService.ts",
-    language: "typescript",
-    size: 800,
-    content: `export class AuthService {\n  private users: Map<string, string> = new Map();\n\n  login(username: string, pass: string): boolean {\n    // TODO: Implement proper hashing\n    return this.users.get(username) === pass;\n  }\n\n  register(username: string, pass: string): void {\n    if (this.users.has(username)) throw new Error('User exists');\n    this.users.set(username, pass);\n  }\n}`
-  },
-  {
-    path: "src/utils/db.ts",
-    language: "typescript",
-    size: 500,
-    content: `import { Pool } from 'pg';\n\nexport const pool = new Pool({\n  connectionString: process.env.DATABASE_URL\n});\n\nexport const query = (text: string, params: any[]) => pool.query(text, params);`
-  },
-  {
-    path: "src/api/routes.ts",
-    language: "typescript",
-    size: 600,
-    content: `import { Router } from 'express';\nimport { AuthService } from '../auth/authService';\n\nconst router = Router();\nconst auth = new AuthService();\n\nrouter.post('/login', (req, res) => {\n  const { user, pass } = req.body;\n  if (auth.login(user, pass)) res.json({ token: 'mock-jwt' });\n  else res.status(401).send('Unauthorized');\n});\n\nexport default router;`
-  }
+  { path: "src/server.ts", language: "typescript", size: 1200, content: `import express from 'express';\nimport { createServer } from 'http';\nconst app = express();\nconst httpServer = createServer(app);\nhttpServer.listen(3000);` },
+  { path: "src/auth/authService.ts", language: "typescript", size: 800, content: `export class AuthService {\n  login(user: string, pass: string): boolean {\n    return true;\n  }\n}` },
+  { path: "src/utils/db.ts", language: "typescript", size: 500, content: `import { Pool } from 'pg';\nexport const pool = new Pool();\nexport const query = (text: string) => pool.query(text);` },
+  { path: "src/api/routes.ts", language: "typescript", size: 600, content: `import { Router } from 'express';\nconst router = Router();\nrouter.post('/login', (req, res) => res.json({ token: 'jwt' }));\nexport default router;` },
 ];
+
+// ── NavBar Hex Glyph ──
+const HexGlyph: React.FC = () => (
+  <svg className="navbar-glyph" viewBox="0 0 28 28" fill="none">
+    <polygon points="14,1 26,7.5 26,20.5 14,27 2,20.5 2,7.5" stroke="#6C63FF" strokeWidth="1.5" fill="transparent" />
+    <circle cx="14" cy="14" r="3" fill="#6C63FF" opacity="0.6" />
+    <line x1="14" y1="7" x2="14" y2="11" stroke="#6C63FF" strokeWidth="1" opacity="0.4" />
+    <line x1="14" y1="17" x2="14" y2="21" stroke="#6C63FF" strokeWidth="1" opacity="0.4" />
+    <line x1="8" y1="14" x2="11" y2="14" stroke="#6C63FF" strokeWidth="1" opacity="0.4" />
+    <line x1="17" y1="14" x2="20" y2="14" stroke="#6C63FF" strokeWidth="1" opacity="0.4" />
+  </svg>
+);
+
+// ── Agent icons map ──
+const AGENT_ICONS: Record<string, React.ElementType> = {
+  structure: Layers,
+  behavior: Activity,
+  semantic: Tag,
+  risk: Shield,
+  execution: Play,
+  synthesizer: Sparkles,
+};
 
 export default function App() {
   const [view, setView] = useState<ViewState>('dashboard');
@@ -99,32 +98,33 @@ export default function App() {
   const [analysis, setAnalysis] = useState<CodeAnalysisResult | null>(null);
   const [partialAnalysis, setPartialAnalysis] = useState<PartialCodeAnalysisResult | null>(null);
   const [importSource, setImportSource] = useState<'local' | 'github'>('local');
-
-  // Progress State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentStage, setCurrentStage] = useState<AgentStage>('init');
   const [stageMessage, setStageMessage] = useState('');
   const [completedAgents, setCompletedAgents] = useState<string[]>([]);
-
-  // Chat State
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [stars, setStars] = useState<StarDot[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory, chatLoading]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const fileList: File[] = Array.from(e.target.files);
-
       const codeFiles = fileList.filter((f: File) =>
         !f.name.startsWith('.') &&
         !(f as any).webkitRelativePath.includes('node_modules') &&
         !(f as any).webkitRelativePath.includes('dist') &&
-        !f.name.endsWith('.png') &&
-        !f.name.endsWith('.jpg')
+        !f.name.endsWith('.png') && !f.name.endsWith('.jpg')
       );
-
       const processedFiles = await Promise.all(
         codeFiles.map(async (file: File) => ({
           path: (file as any).webkitRelativePath,
@@ -133,7 +133,6 @@ export default function App() {
           size: file.size
         }))
       );
-
       handleFilesLoaded(processedFiles);
     }
   };
@@ -142,14 +141,11 @@ export default function App() {
     setFiles(loadedFiles);
     setAnalysis(null);
     setPartialAnalysis(null);
-    // Automatically start streaming analysis
     startStreamingAnalysis(loadedFiles);
   };
 
-  // NEW: Streaming analysis that updates UI progressively
   const startStreamingAnalysis = async (filesToAnalyze: FileNode[]) => {
     if (filesToAnalyze.length === 0) return;
-
     setIsAnalyzing(true);
     setPartialAnalysis(null);
     setAnalysis(null);
@@ -159,31 +155,20 @@ export default function App() {
 
     try {
       const generator = orchestrateAgentsStreaming(filesToAnalyze);
-
       for await (const update of generator) {
-        // Update UI with each streaming update
         setCurrentStage(update.stage);
         setStageMessage(update.message);
         setCompletedAgents(update.partialResult.completedAgents || []);
-
-        // Set partial analysis whenever we have any meaningful data
-        // This enables navigation tabs and dashboard sections progressively
         if (update.partialResult.graphData || update.partialResult.summary || update.partialResult.architecture) {
           setPartialAnalysis(update.partialResult);
         }
-
-        // Switch to dashboard as soon as structure is done (so user can explore while analysis continues)
         if (update.partialResult.graphData && update.stage === 'structure') {
-          setView('dashboard'); // Go to dashboard instead of brainMap for better UX
+          setView('dashboard');
         }
-
-        // If complete, set final analysis
         if (update.partialResult.isComplete) {
           setAnalysis(update.partialResult as CodeAnalysisResult);
-          // Stay on current view - don't force dashboard switch
         }
       }
-
     } catch (error: any) {
       console.error('[Streaming Analysis] Error:', error);
       setStageMessage(`Error: ${error.message}`);
@@ -195,417 +180,659 @@ export default function App() {
 
   const handleSendMessage = async () => {
     if (!chatInput.trim() || !analysis) return;
-
     const userMsg: ChatMessage = { role: 'user', text: chatInput, timestamp: Date.now() };
     setChatHistory(prev => [...prev, userMsg]);
     setChatInput('');
     setChatLoading(true);
-
     try {
       const response = await chatWithContext(chatHistory, chatInput, analysis);
       setChatHistory(prev => [...prev, { role: 'model', text: response, timestamp: Date.now() }]);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setChatLoading(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setChatLoading(false); }
   };
 
-  // Demo Fallback
   const handleImportError = (msg: string) => {
     console.warn(`[Import Error] ${msg}`);
-    setTimeout(() => {
-      handleFilesLoaded(DEMO_FILES);
-    }, 500);
+    setTimeout(() => handleFilesLoaded(DEMO_FILES), 500);
   };
 
-  // Get effective analysis (complete or partial)
-  const effectiveAnalysis = analysis || partialAnalysis;
+  const handleReset = () => {
+    setAnalysis(null);
+    setPartialAnalysis(null);
+    setFiles([]);
+    setImportSource('local');
+    setCompletedAgents([]);
+    setView('dashboard');
+  };
 
-  // Check if specific sections are ready
+  const effectiveAnalysis = analysis || partialAnalysis;
   const hasGraphData = (effectiveAnalysis?.graphData?.nodes?.length || 0) > 0;
   const hasRisks = (effectiveAnalysis?.risks?.length || 0) > 0;
   const hasSummary = !!effectiveAnalysis?.summary;
   const hasArchitecture = !!effectiveAnalysis?.architecture;
-
-  // Any data available - allow navigation
   const hasAnyData = hasGraphData || hasSummary || hasArchitecture || hasRisks;
-
-  // Show agent progress during initial analysis (before any data is ready)
   const showAgentProgress = isAnalyzing && !hasAnyData;
+  const showLanding = !effectiveAnalysis && !isAnalyzing;
+
+  useEffect(() => {
+    if (!showLanding) return;
+    const dots: StarDot[] = Array.from({ length: 90 }).map(() => ({
+      xPct: Math.random() * 100,
+      yPct: Math.random() * 100,
+      sizePx: 0.5 + Math.random() * 1.5,
+      opacity: 0.1 + Math.random() * 0.5,
+    }));
+    setStars(dots);
+  }, [showLanding]);
+
+  const NAV_TABS = [
+    { id: 'dashboard', label: 'Overview', ready: hasAnyData },
+    { id: 'brainMap', label: 'Brain Map', ready: hasGraphData },
+    { id: 'riskCenter', label: 'Risk Center', ready: hasRisks || isAnalyzing },
+    { id: 'chat', label: 'Chat', ready: hasAnyData },
+    { id: 'execution', label: 'Simulator', ready: !!analysis },
+  ];
+
+  const AGENTS = [
+    { id: 'structure', label: 'Structure' },
+    { id: 'behavior', label: 'Behavior' },
+    { id: 'semantic', label: 'Semantic' },
+    { id: 'risk', label: 'Risk' },
+    { id: 'execution', label: 'Execution' },
+    { id: 'synthesizer', label: 'Synthesizer' },
+  ];
+
+  // ── Risk counts for dashboard ──
+  const riskCounts = effectiveAnalysis?.risks?.reduce((acc, r) => {
+    acc[r.severity] = (acc[r.severity] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>) || {};
+  const totalRisks = Object.values(riskCounts).reduce((a: number, b: number) => a + b, 0);
 
   return (
-    <div className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans overflow-hidden relative">
-      <ParticleBackground />
-
-      {/* --- Top Navigation --- */}
-      <header className="h-16 border-b border-slate-800/60 bg-slate-900/60 backdrop-blur-md flex items-center justify-between px-6 z-20">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-            <Terminal size={20} className="text-white" />
-          </div>
-          <div>
-            <h1 className="font-bold text-xl leading-none bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent tracking-tight">
-              CODESENSEI
-            </h1>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono mt-1">
-              AI Architect OS
-            </p>
-          </div>
-        </div>
-
-        {/* Show nav when we have any analysis data */}
-        {effectiveAnalysis && (
-          <nav className="flex bg-slate-800/50 rounded-lg p-1 border border-slate-700/50">
-            {[
-              { id: 'dashboard', icon: Layers, label: 'Overview', ready: hasAnyData }, // Allow dashboard as soon as any data
-              { id: 'brainMap', icon: GitBranch, label: 'Brain Map', ready: hasGraphData },
-              { id: 'riskCenter', icon: AlertTriangle, label: 'Risks', ready: hasRisks || isAnalyzing }, // Show during analysis
-              { id: 'chat', icon: MessageSquare, label: 'Query', ready: hasAnyData },
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => item.ready && setView(item.id as ViewState)}
-                className={`
-                  flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-all
-                  ${view === item.id
-                    ? 'bg-slate-700 text-cyan-400 shadow-sm'
-                    : item.ready
-                      ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-                      : 'text-slate-600 cursor-not-allowed'}
-                `}
-                disabled={!item.ready}
-              >
-                <item.icon size={14} />
-                {item.label}
-                {!item.ready && isAnalyzing && (
-                  <Loader2 size={12} className="animate-spin" />
-                )}
-              </button>
-            ))}
-          </nav>
-        )}
-
-        <div className="flex items-center gap-3">
-          {files.length > 0 && !isAnalyzing && !analysis && (
-            <div className="text-xs font-mono text-cyan-400 mr-2 animate-pulse">
-              {files.length} FILES LOADED
+    <div className="app-layout">
+      {/* ── Navigation Bar ── */}
+      <nav className="cs-nav">
+        <div className="cs-nav-inner">
+          <div className="cs-nav-left" onClick={handleReset} role="button" aria-label="Reset to landing">
+            <div className="cs-logo">C&gt;</div>
+            <div className="cs-wordmark">
+              <div className="cs-wordmark-top">CODESENSEI</div>
+              <div className="cs-wordmark-sub">AI ARCHITECT OS</div>
             </div>
-          )}
+          </div>
 
-          <NeonButton
-            onClick={() => {
-              setAnalysis(null);
-              setPartialAnalysis(null);
-              setFiles([]);
-              setImportSource('local');
-              setCompletedAgents([]);
-            }}
-            variant="blue"
-            icon={FolderOpen}
-            disabled={isAnalyzing}
-          >
-            New Project
-          </NeonButton>
+          <div className="cs-nav-center">
+            {effectiveAnalysis ? (
+              NAV_TABS.map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`cs-nav-link ${view === tab.id ? 'cs-nav-link--active' : ''}`}
+                  onClick={() => tab.ready && setView(tab.id as ViewState)}
+                  disabled={!tab.ready}
+                >
+                  {tab.label}
+                  {!tab.ready && isAnalyzing && <Loader2 size={12} className="spinner" style={{ marginLeft: 8, color: 'var(--text-muted)' }} />}
+                </button>
+              ))
+            ) : (
+              <>
+                <button className="cs-nav-link" type="button">Dashboard</button>
+                <button className="cs-nav-link" type="button">Projects</button>
+                <button className="cs-nav-link" type="button">Docs</button>
+              </>
+            )}
+          </div>
+
+          <div className="cs-nav-right">
+            <div className="cs-status-pill">
+              <span className="cs-pulse-dot" />
+              {isAnalyzing ? 'Analyzing · Live' : 'GPT-4o · Live'}
+            </div>
+            <button className="cs-new-project" onClick={handleReset} type="button">
+              New Project
+            </button>
+          </div>
         </div>
-      </header>
+      </nav>
 
-      {/* --- Main Content Area --- */}
-      <main className="flex-1 overflow-hidden relative p-6">
+      {/* ── Main Content ── */}
+      <main className="main-content">
 
-        {/* State: Empty / Upload */}
-        {!effectiveAnalysis && !isAnalyzing && (
-          <div className="h-full flex flex-col items-center justify-center animate-fade-in-up">
-            <GlassPanel className="p-12 max-w-2xl text-center border-slate-700/50 w-full">
-              <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 relative">
-                <div className="absolute inset-0 bg-cyan-500/20 rounded-full animate-pulse-slow"></div>
-                <Zap size={40} className="text-cyan-400" />
-              </div>
-              <h2 className="text-3xl font-bold text-white mb-4">Initialize Neural Analysis</h2>
-              <p className="text-slate-400 mb-8 max-w-md mx-auto leading-relaxed">
-                Import a repository to generate a complete architectural knowledge graph, risk assessment, and execution simulation.
-              </p>
+        {/* ══ Landing / Import ══ */}
+        {showLanding && (
+          <div className="cs-landing">
+            <section className="cs-landing-hero">
+              <div className="cs-landing-grid" />
 
-              <div className="flex justify-center gap-4 mb-8">
-                <button
-                  onClick={() => setImportSource('local')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${importSource === 'local'
-                    ? 'bg-slate-800 text-cyan-400 border border-slate-600'
-                    : 'text-slate-500 hover:text-slate-300'
-                    }`}
-                >
-                  <UploadCloud size={16} /> Local Upload
-                </button>
-                <button
-                  onClick={() => setImportSource('github')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${importSource === 'github'
-                    ? 'bg-slate-800 text-purple-400 border border-slate-600'
-                    : 'text-slate-500 hover:text-slate-300'
-                    }`}
-                >
-                  <Github size={16} /> GitHub Import
-                </button>
-              </div>
+              {/* Ambient glow blobs */}
+              <div className="cs-landing-blob" style={{ width: 400, height: 300, background: 'rgba(124,58,237,0.12)', top: '10%', left: '15%' }} />
+              <div className="cs-landing-blob" style={{ width: 350, height: 280, background: 'rgba(6,182,212,0.07)', top: '20%', right: '10%' }} />
+              <div className="cs-landing-blob" style={{ width: 500, height: 200, background: 'rgba(124,58,237,0.08)', bottom: '20%', left: '50%', transform: 'translateX(-50%)' }} />
 
-              {importSource === 'local' ? (
-                <>
-                  <NeonButton
-                    onClick={() => fileInputRef.current?.click()}
-                    icon={FolderOpen}
-                    className="mx-auto w-48 h-12 text-lg"
-                  >
-                    Select Folder
-                  </NeonButton>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    {...{ webkitdirectory: "" } as any}
-                    multiple
-                    className="hidden"
-                    onChange={handleFileUpload}
+              {/* Stars */}
+              <div className="cs-landing-stars" aria-hidden="true">
+                {stars.map((s, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      position: 'absolute',
+                      left: `${s.xPct}%`,
+                      top: `${s.yPct}%`,
+                      width: s.sizePx,
+                      height: s.sizePx,
+                      borderRadius: 9999,
+                      background: '#ffffff',
+                      opacity: s.opacity,
+                    }}
                   />
-                </>
-              ) : (
-                <GitHubImporter
-                  onImportComplete={handleFilesLoaded}
-                  onError={handleImportError}
-                />
-              )}
+                ))}
+              </div>
 
-            </GlassPanel>
+              {/* Hero content */}
+              <div
+                style={{
+                  position: 'relative',
+                  zIndex: 2,
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 16px',
+                  textAlign: 'center',
+                }}
+              >
+                {/* Status chip */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '5px 14px',
+                    borderRadius: 20,
+                    background: 'rgba(124,58,237,0.12)',
+                    border: '1px solid rgba(124,58,237,0.3)',
+                    fontSize: 11,
+                    color: 'var(--purple-mid)',
+                    marginBottom: 28,
+                  }}
+                >
+                  <span style={{ width: 5, height: 5, borderRadius: 9999, background: 'var(--purple-strong)' }} />
+                  Multi-agent analysis · v2.4 · Production ready
+                </div>
+
+                {/* Headline */}
+                <h1
+                  style={{
+                    fontSize: 'clamp(28px, 8vw, 52px)',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    lineHeight: 1.1,
+                    letterSpacing: '-0.02em',
+                    marginBottom: 16,
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  <span style={{ display: 'block', color: 'var(--text-primary)' }}>Understand any</span>
+                  <span
+                    style={{
+                      display: 'block',
+                      background: 'linear-gradient(135deg, #a78bfa 0%, #06b6d4 50%, #7c3aed 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                    }}
+                  >
+                    codebase instantly.
+                  </span>
+                </h1>
+
+                {/* Subheading */}
+                <p
+                  style={{
+                    fontSize: 16,
+                    color: 'var(--text-muted)',
+                    textAlign: 'center',
+                    maxWidth: 480,
+                    lineHeight: 1.6,
+                    marginBottom: 36,
+                  }}
+                >
+                  Feed it a repo. Get a complete architectural brain map, risk assessment, and AI-powered execution simulation.
+                </p>
+
+                {/* Feature chips */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 48 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, fontSize: 11, background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.3)', color: 'var(--purple-mid)' }}>⬡ Brain Map</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, fontSize: 11, background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.3)', color: '#67e8f9' }}>⚡ Risk Scoring</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, fontSize: 11, background: 'rgba(62,207,142,0.07)', border: '1px solid rgba(62,207,142,0.3)', color: '#6ee7b7' }}>✦ AI Chat</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, fontSize: 11, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)', color: '#fcd34d' }}>◈ Impact Sim</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, fontSize: 11, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-secondary)' }}>↻ Execution Flow</span>
+                </div>
+
+                {/* Input section */}
+                <div style={{ width: '100%', maxWidth: 620 }}>
+                  {/* Tab switcher */}
+                  <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 3, border: '1px solid rgba(255,255,255,0.07)', marginBottom: 12 }}>
+                    <button
+                      type="button"
+                      onClick={() => setImportSource('github')}
+                      style={{
+                        flex: 1,
+                        padding: '7px 16px',
+                        borderRadius: 6,
+                        fontSize: 12,
+                        textAlign: 'center',
+                        color: importSource === 'github' ? 'var(--purple-mid)' : 'var(--text-muted)',
+                        background: importSource === 'github' ? 'rgba(124,58,237,0.25)' : 'transparent',
+                        border: importSource === 'github' ? '1px solid rgba(124,58,237,0.3)' : '1px solid transparent',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <Github size={14} />
+                      GitHub Import
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImportSource('local')}
+                      style={{
+                        flex: 1,
+                        padding: '7px 16px',
+                        borderRadius: 6,
+                        fontSize: 12,
+                        textAlign: 'center',
+                        color: importSource === 'local' ? 'var(--purple-mid)' : 'var(--text-muted)',
+                        background: importSource === 'local' ? 'rgba(124,58,237,0.25)' : 'transparent',
+                        border: importSource === 'local' ? '1px solid rgba(124,58,237,0.3)' : '1px solid transparent',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <UploadCloud size={14} />
+                      Local Upload
+                    </button>
+                  </div>
+
+                  {/* Panels */}
+                  {importSource === 'github' ? (
+                    <div>
+                      <GitHubImporter onImportComplete={handleFilesLoaded} onError={handleImportError} />
+                    </div>
+                  ) : (
+                    <div>
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                        onDragLeave={() => setDragOver(false)}
+                        onDrop={(e) => { e.preventDefault(); setDragOver(false); }}
+                        role="button"
+                        style={{
+                          border: '1.5px dashed rgba(124,58,237,0.3)',
+                          borderRadius: 12,
+                          padding: '32px 20px',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          background: dragOver ? 'rgba(124,58,237,0.08)' : 'rgba(124,58,237,0.04)',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <div style={{ fontSize: 28, opacity: 0.6, marginBottom: 10 }}>⬡</div>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: '#c4b5fd', marginBottom: 4 }}>
+                          Drop your project folder here
+                        </div>
+                        <div style={{ fontSize: 12, color: '#4a4460' }}>
+                          Supports any language · Scans recursively · Stays local
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            marginTop: 16,
+                            padding: '9px 24px',
+                            borderRadius: 8,
+                            fontSize: 13,
+                            fontWeight: 600,
+                            background: 'linear-gradient(135deg, #7c3aed, #06b6d4)',
+                            color: '#fff',
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Select Folder
+                        </button>
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        {...{ webkitdirectory: "" } as any}
+                        multiple
+                        style={{ display: 'none' }}
+                        onChange={handleFileUpload}
+                      />
+                    </div>
+                  )}
+
+                  {/* No account line */}
+                  <div style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: '#4a4460' }}>
+                    No account needed ·{' '}
+                    <a
+                      href="#"
+                      onClick={(e) => e.preventDefault()}
+                      style={{ color: 'var(--purple-strong)', textDecoration: 'none' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--purple-mid)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--purple-strong)'; }}
+                    >
+                      Try the live demo →
+                    </a>
+                  </div>
+                </div>
+
+                {/* Stats row */}
+                <div
+                  className="cs-stats-row"
+                  style={{
+                    display: 'flex',
+                    gap: 32,
+                    alignItems: 'center',
+                    marginTop: 52,
+                    justifyContent: 'center',
+                  }}
+                >
+                  {[
+                    { number: '142+', plusPurple: true, label: 'Repos analyzed' },
+                    { number: '4', label: 'AI agents' },
+                    { number: '<30s', label: 'Full analysis' },
+                    { number: 'GPT-4o', label: 'Powered by' },
+                  ].map((s, i) => (
+                    <React.Fragment key={s.label}>
+                      <div style={{ textAlign: 'center', minWidth: 110 }}>
+                        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {s.plusPurple ? (
+                            <>
+                              <span>142</span><span style={{ color: 'var(--purple-strong)' }}>+</span>
+                            </>
+                          ) : (
+                            s.number
+                          )}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#4a4460', marginTop: 2 }}>{s.label}</div>
+                      </div>
+                      {i < 3 && (
+                        <div
+                          style={{
+                            width: 1,
+                            height: 28,
+                            background: 'rgba(255,255,255,0.06)',
+                          }}
+                          className="cs-stat-divider"
+                        />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            </section>
           </div>
         )}
 
-        {/* State: Analyzing with Progress - Show agent progress until we have graph data */}
+        {/* ══ Analyzing Progress ══ */}
         {showAgentProgress && (
-          <div className="h-full flex flex-col items-center justify-center">
-            <GlassPanel className="p-8 w-full max-w-lg text-center">
-              <h3 className="text-xl font-bold text-white mb-2">Analyzing Architecture</h3>
-              <p className="text-slate-400 text-sm mb-6">{stageMessage}</p>
-
-              {/* Agent Progress Indicators */}
-              <div className="space-y-2 mb-6">
-                {[
-                  { id: 'structure', label: 'Structure Agent', icon: Layers },
-                  { id: 'behavior', label: 'Behavior Agent', icon: Activity },
-                  { id: 'semantic', label: 'Semantic Agent', icon: Brain },
-                  { id: 'risk', label: 'Risk Agent', icon: AlertTriangle },
-                  { id: 'execution', label: 'Execution Agent', icon: Zap },
-                  { id: 'synthesizer', label: 'Synthesizer', icon: Terminal },
-                ].map((agent) => {
+          <div className="landing-container">
+            <div className="glass-card" style={{ maxWidth: 500, width: '100%', textAlign: 'center' }}>
+              <h3 className="text-heading" style={{ marginBottom: 'var(--space-2)' }}>Analyzing Architecture</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 'var(--space-6)' }}>{stageMessage}</p>
+              <div className="agent-progress">
+                {AGENTS.map(agent => {
                   const isComplete = completedAgents.includes(agent.id);
                   const isActive = currentStage === agent.id ||
                     (currentStage === 'parallel_reasoning' && ['behavior', 'semantic'].includes(agent.id)) ||
                     (currentStage === 'execution_simulation' && ['risk', 'execution'].includes(agent.id)) ||
                     (currentStage === 'synthesis' && agent.id === 'synthesizer');
-
+                  const Icon = AGENT_ICONS[agent.id] || Layers;
                   return (
-                    <div
-                      key={agent.id}
-                      className={`flex items-center gap-3 p-2 rounded-lg transition-all ${isComplete ? 'bg-green-900/20 border border-green-500/30' :
-                        isActive ? 'bg-cyan-900/20 border border-cyan-500/30' :
-                          'bg-slate-800/30 border border-slate-700/30'
-                        }`}
-                    >
-                      <agent.icon size={16} className={
-                        isComplete ? 'text-green-400' :
-                          isActive ? 'text-cyan-400 animate-pulse' :
-                            'text-slate-600'
-                      } />
-                      <span className={`text-sm font-medium ${isComplete ? 'text-green-300' :
-                        isActive ? 'text-cyan-300' :
-                          'text-slate-500'
-                        }`}>
+                    <div key={agent.id} className={`agent-progress-item ${isComplete ? 'agent-progress-item--complete' : isActive ? 'agent-progress-item--active' : ''}`}>
+                      <Icon size={16} style={{ color: isComplete ? 'var(--risk-low)' : isActive ? 'var(--accent-indigo)' : 'var(--text-muted)' }} />
+                      <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: isComplete ? 'var(--risk-low)' : isActive ? 'var(--accent-indigo)' : 'var(--text-muted)' }}>
                         {agent.label}
                       </span>
-                      {isComplete && <CheckCircle size={14} className="ml-auto text-green-400" />}
-                      {isActive && !isComplete && <Loader2 size={14} className="ml-auto text-cyan-400 animate-spin" />}
+                      {isComplete && <CheckCircle size={14} style={{ color: 'var(--risk-low)' }} />}
+                      {isActive && !isComplete && <Loader2 size={14} className="spinner" style={{ color: 'var(--accent-indigo)' }} />}
                     </div>
                   );
                 })}
               </div>
-            </GlassPanel>
-          </div>
-        )}
-
-        {/* State: Dashboard View - Show when we have any data */}
-        {effectiveAnalysis && view === 'dashboard' && hasAnyData && (
-          <div className="h-full overflow-y-auto space-y-6 animate-fade-in pr-2">
-            {/* Summary Card */}
-            <GlassPanel className="p-8 relative overflow-hidden border-l-4 border-l-cyan-500">
-              <div className="absolute top-0 right-0 p-6 opacity-5">
-                <Brain size={150} />
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-4">
-                Executive Summary
-                {isAnalyzing && <Loader2 size={20} className="inline ml-2 animate-spin text-cyan-400" />}
-              </h2>
-              {hasSummary ? (
-                <p className="text-slate-300 leading-relaxed max-w-4xl text-lg font-light">
-                  {effectiveAnalysis.summary}
-                </p>
-              ) : (
-                <p className="text-slate-500 italic">Generating summary...</p>
-              )}
-              <div className="mt-6 flex gap-3 flex-wrap">
-                {(effectiveAnalysis.techStack || []).map(t => (
-                  <span key={t} className="px-3 py-1 bg-slate-800 rounded-full border border-slate-700 text-xs font-mono text-cyan-300">
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </GlassPanel>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <GlassPanel className="p-6">
-                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                  <Layers className="text-purple-400" /> System Architecture
-                </h3>
-                <p className="text-slate-400 text-sm whitespace-pre-line leading-relaxed">
-                  {effectiveAnalysis.architecture || 'Analyzing architecture...'}
-                </p>
-              </GlassPanel>
-
-              <GlassPanel className="p-6">
-                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                  <AlertTriangle className="text-red-400" /> Critical Risks
-                  {!hasRisks && isAnalyzing && <Loader2 size={16} className="animate-spin text-slate-500" />}
-                </h3>
-                <div className="space-y-3">
-                  {hasRisks ? (
-                    effectiveAnalysis.risks!.slice(0, 3).map(risk => (
-                      <div key={risk.id} className="p-3 bg-red-900/10 border border-red-500/20 rounded-lg">
-                        <div className="flex justify-between mb-1">
-                          <span className="text-red-300 font-bold text-sm">{risk.title}</span>
-                          <span className="text-[10px] uppercase bg-red-500/20 text-red-300 px-2 py-0.5 rounded">
-                            {risk.severity}
-                          </span>
-                        </div>
-                        <p className="text-xs text-red-200/60 truncate">{risk.description}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-slate-500 italic text-sm">Analyzing risks...</p>
-                  )}
-                </div>
-              </GlassPanel>
             </div>
           </div>
         )}
 
-        {/* State: Brain Map */}
+        {/* ══ Dashboard / Overview ══ */}
+        {effectiveAnalysis && view === 'dashboard' && hasAnyData && (
+          <div className="bento-grid">
+            {/* Agent Pipeline — full width */}
+            <div className="glass-card bento-full">
+              <CardHeader title="Agent Pipeline" />
+              <div className="agent-pipeline">
+                {AGENTS.map((agent, i) => {
+                  const isComplete = completedAgents.includes(agent.id);
+                  const isActive = currentStage === agent.id ||
+                    (currentStage === 'parallel_reasoning' && ['behavior', 'semantic'].includes(agent.id)) ||
+                    (currentStage === 'execution_simulation' && ['risk', 'execution'].includes(agent.id)) ||
+                    (currentStage === 'synthesis' && agent.id === 'synthesizer');
+                  const Icon = AGENT_ICONS[agent.id] || Layers;
+
+                  return (
+                    <React.Fragment key={agent.id}>
+                      <div className="agent-node">
+                        <div className={`agent-hex ${isActive && !isComplete ? 'agent-hex--running' : ''}`}>
+                          <HexSvg
+                            fill={isComplete ? '#6C63FF' : isActive ? 'rgba(108,99,255,0.12)' : '#13131F'}
+                            stroke={isComplete || isActive ? '#6C63FF' : '#1E1E35'}
+                          />
+                          <Icon
+                            size={18}
+                            className="agent-hex__icon"
+                            style={{ color: isComplete ? '#F0EFFF' : isActive ? '#6C63FF' : '#8B8BA0' }}
+                          />
+                        </div>
+                        <span className="agent-name">{agent.label}</span>
+                      </div>
+                      {i < AGENTS.length - 1 && (
+                        <div className={`agent-connector ${isComplete ? 'agent-connector--complete' : ''}`} />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Architecture Summary — 2 cols */}
+            <div className="glass-card bento-2col">
+              <CardHeader title="Architecture Summary" />
+              {hasSummary ? (
+                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, fontSize: 15 }}>
+                  {effectiveAnalysis.summary}
+                </p>
+              ) : (
+                <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Generating summary…</p>
+              )}
+              {hasArchitecture && (
+                <p style={{ color: 'var(--text-secondary)', fontSize: 14, whiteSpace: 'pre-line', marginTop: 'var(--space-4)', lineHeight: 1.7, borderTop: '1px solid var(--bg-border)', paddingTop: 'var(--space-4)' }}>
+                  {effectiveAnalysis.architecture}
+                </p>
+              )}
+              {/* Tech stack tags */}
+              {(effectiveAnalysis.techStack || []).length > 0 && (
+                <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                  {effectiveAnalysis.techStack!.map(t => (
+                    <span key={t} className="tech-tag">{t}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Key Metrics — 1 col */}
+            <div className="glass-card">
+              <CardHeader title="Key Metrics" cyan />
+              <div className="metric-block">
+                <div className="metric-number">{files.length || '—'}</div>
+                <div className="metric-label">Files Analyzed</div>
+              </div>
+              <div className="metric-block">
+                <div className="metric-number">{effectiveAnalysis.graphData?.nodes?.length || '—'}</div>
+                <div className="metric-label">Graph Nodes</div>
+              </div>
+              <div className="metric-block">
+                <div className="metric-number">{effectiveAnalysis.risks?.length || '—'}</div>
+                <div className="metric-label">Risks Found</div>
+              </div>
+            </div>
+
+            {/* Risk Snapshot — 2 cols */}
+            {hasRisks && (
+              <div className="glass-card bento-2col">
+                <CardHeader title="Risk Snapshot" />
+                {(['critical', 'high', 'medium', 'low'] as const).map(sev => {
+                  const count = riskCounts[sev] || 0;
+                  if (count === 0) return null;
+                  const colorMap = { critical: 'var(--risk-critical)', high: 'var(--risk-high)', medium: 'var(--risk-medium)', low: 'var(--risk-low)' };
+                  return (
+                    <div key={sev} className="risk-bar-row">
+                      <span className="risk-bar-label">{sev.charAt(0).toUpperCase() + sev.slice(1)}</span>
+                      <SeverityPill severity={sev} />
+                      <div className="risk-bar-track">
+                        <div className="risk-bar-fill" style={{ background: colorMap[sev], width: `${(count / Math.max(totalRisks as number, 1)) * 100}%` }} />
+                      </div>
+                      <span className="risk-bar-count" style={{ color: colorMap[sev] }}>{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Critical Risks Preview — 1 col */}
+            {hasRisks && (
+              <div className="glass-card">
+                <CardHeader title="Top Risks" />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  {effectiveAnalysis.risks!.slice(0, 3).map(risk => (
+                    <div key={risk.id} style={{
+                      padding: 'var(--space-3)',
+                      borderRadius: 'var(--radius-sm)',
+                      borderLeft: `3px solid ${risk.severity === 'critical' ? 'var(--risk-critical)' : risk.severity === 'high' ? 'var(--risk-high)' : 'var(--risk-medium)'}`,
+                      background: 'var(--bg-elevated)',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{risk.title}</span>
+                        <SeverityPill severity={risk.severity} />
+                      </div>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{risk.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══ Brain Map ══ */}
         {effectiveAnalysis && view === 'brainMap' && hasGraphData && (
-          <div className="h-full rounded-2xl overflow-hidden border border-slate-700 shadow-2xl relative">
+          <div style={{ height: '100%', position: 'relative', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--bg-border)' }}>
             <BrainMap
               data={effectiveAnalysis.graphData!}
               onNodeClick={(node) => console.log(node)}
             />
-            <div className="absolute top-4 left-4 pointer-events-none">
-              <GlassPanel className="px-4 py-2">
-                <p className="text-xs font-mono text-cyan-400 font-bold">
-                  INTERACTIVE TOPOLOGY
-                  {isAnalyzing && <Loader2 size={12} className="inline ml-2 animate-spin" />}
+            <div style={{ position: 'absolute', top: 'var(--space-4)', left: 'var(--space-4)', pointerEvents: 'none' }}>
+              <div className="glass-card" style={{ padding: 'var(--space-2) var(--space-4)' }}>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600, color: 'var(--accent-indigo)', textTransform: 'uppercase' }}>
+                  Interactive Topology
+                  {isAnalyzing && <Loader2 size={12} className="spinner" style={{ marginLeft: 8, display: 'inline' }} />}
                 </p>
-                <p className="text-[10px] text-slate-500">{effectiveAnalysis.graphData!.nodes.length} Modules</p>
-              </GlassPanel>
+                <p style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  {effectiveAnalysis.graphData!.nodes.length} Modules · {effectiveAnalysis.graphData!.links.length} Edges
+                </p>
+              </div>
             </div>
           </div>
         )}
 
-        {/* State: Risk Center */}
+        {/* ══ Risk Center ══ */}
         {effectiveAnalysis && view === 'riskCenter' && hasRisks && (
-          <div className="h-full overflow-y-auto space-y-4 animate-fade-in pr-2">
-            <h2 className="text-2xl font-bold text-white mb-4">
+          <div style={{ animation: 'fade-up 400ms ease-out' }}>
+            <h2 className="text-title" style={{ marginBottom: 'var(--space-6)', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
               Risk Assessment Report
-              {isAnalyzing && <Loader2 size={20} className="inline ml-2 animate-spin text-cyan-400" />}
+              {isAnalyzing && <Loader2 size={20} className="spinner" style={{ color: 'var(--accent-indigo)' }} />}
             </h2>
-            {effectiveAnalysis.risks!.map(risk => (
-              <GlassPanel key={risk.id} className="p-6 border-l-4 border-l-transparent hover:border-l-red-500 transition-all">
-                <div className="flex gap-4">
-                  <div className="mt-1">
-                    <AlertTriangle className={
-                      risk.severity === 'critical' ? 'text-red-500' :
-                        risk.severity === 'high' ? 'text-orange-500' : 'text-yellow-500'
-                    } size={24} />
+            <div className="risk-grid">
+              {effectiveAnalysis.risks!.map(risk => (
+                <div key={risk.id} className={`risk-card risk-card--${risk.severity}`}>
+                  <div className="risk-card__top">
+                    <SeverityPill severity={risk.severity} />
+                    <span className="risk-card__file">{risk.location}</span>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-bold text-slate-200">{risk.title}</h3>
-                      <span className={`
-                         text-xs font-bold uppercase px-3 py-1 rounded-full
-                         ${risk.severity === 'critical' ? 'bg-red-500 text-white' : 'bg-slate-800 text-slate-400'}
-                       `}>
-                        {risk.severity}
-                      </span>
-                    </div>
-                    <p className="text-slate-400 mt-2 text-sm">{risk.description}</p>
-
-                    <div className="mt-4 p-3 bg-slate-900/50 rounded border border-slate-700/50">
-                      <p className="text-xs font-mono text-slate-500 mb-2">MITIGATION STRATEGY:</p>
-                      <ul className="space-y-1">
-                        {risk.mitigation.map((m, i) => (
-                          <li key={i} className="text-sm text-slate-300 flex items-start gap-2">
-                            <CheckCircle size={14} className="text-green-500 mt-0.5" />
-                            {m}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
+                  <div className="risk-card__title">{risk.title}</div>
+                  <div className="risk-card__desc">{risk.description}</div>
+                  <hr className="risk-card__divider" />
+                  <div className="risk-card__mitigation-label">Mitigation</div>
+                  {risk.mitigation.map((m, i) => (
+                    <p key={i} className="risk-card__mitigation-text" style={{ display: 'flex', alignItems: 'start', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+                      <CheckCircle size={13} style={{ color: 'var(--risk-low)', marginTop: 2, flexShrink: 0 }} />
+                      {m}
+                    </p>
+                  ))}
                 </div>
-              </GlassPanel>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 
-        {/* State: Chat */}
+        {/* ══ Chat ══ */}
         {effectiveAnalysis && view === 'chat' && hasSummary && (
-          <div className="h-full flex flex-col">
-            <GlassPanel className="flex-1 mb-4 overflow-hidden flex flex-col">
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="chat-panel">
+            <div className="glass-card" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginBottom: 'var(--space-4)' }}>
+              <div className="chat-messages">
                 {chatHistory.length === 0 && (
-                  <div className="h-full flex flex-col items-center justify-center text-slate-600">
-                    <MessageSquare size={48} className="mb-4 opacity-50" />
-                    <p>Ask me anything about the codebase...</p>
+                  <div className="chat-empty">
+                    <MessageSquare size={48} style={{ opacity: 0.3 }} />
+                    <p>Ask me anything about the codebase…</p>
                   </div>
                 )}
                 {chatHistory.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`
-                        max-w-[80%] p-3 rounded-xl text-sm font-medium
-                        ${msg.role === 'user'
-                        ? 'bg-cyan-600 text-white rounded-tr-none'
-                        : 'bg-slate-800 text-slate-300 rounded-tl-none'}
-                      `}>
-                      {msg.role === 'model' ? renderMarkdown(msg.text) : msg.text}
-                    </div>
+                  <div key={i} className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}>
+                    {msg.role === 'model' ? renderMarkdown(msg.text) : msg.text}
                   </div>
                 ))}
                 {chatLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-slate-800 p-3 rounded-xl rounded-tl-none">
-                      <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce delay-75"></div>
-                        <div className="w-2 h-2 bg-slate-500 rounded-full animate-bounce delay-150"></div>
-                      </div>
+                  <div className="chat-bubble-ai">
+                    <div className="loading-dots">
+                      <div className="loading-dot" />
+                      <div className="loading-dot" />
+                      <div className="loading-dot" />
                     </div>
                   </div>
                 )}
+                <div ref={chatEndRef} />
               </div>
-            </GlassPanel>
-
-            <div className="flex gap-2">
+            </div>
+            <div className="chat-input-area">
               <input
-                className="flex-1 bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
+                className="chat-input"
                 placeholder="Type your query..."
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
               />
-              <NeonButton onClick={handleSendMessage} disabled={chatLoading} icon={ChevronRight}>
-                Send
-              </NeonButton>
+              <button className="chat-send-btn" onClick={handleSendMessage} disabled={chatLoading}>
+                <ArrowUp size={18} />
+              </button>
             </div>
           </div>
         )}

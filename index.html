@@ -4,101 +4,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CodeSensei - Intelligent Code OS</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600&family=Inter:wght@300;400;500;600;700&display=swap"
-    rel="stylesheet">
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['Fira Code', 'monospace'],
-          },
-          colors: {
-            space: {
-              950: '#020617',
-              900: '#0f172a',
-              800: '#1e293b',
-            },
-            neon: {
-              blue: '#00f3ff',
-              purple: '#bd00ff',
-              green: '#00ff9d',
-              red: '#ff0055',
-            }
-          },
-          animation: {
-            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            'spin-slow': 'spin 3s linear infinite',
-            'fade-in': 'fadeIn 0.5s ease-out forwards',
-            'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
-          },
-          keyframes: {
-            fadeIn: {
-              '0%': { opacity: '0' },
-              '100%': { opacity: '1' },
-            },
-            fadeInUp: {
-              '0%': { opacity: '0', transform: 'translateY(10px)' },
-              '100%': { opacity: '1', transform: 'translateY(0)' },
-            }
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    body {
-      background-color: #020617;
-      color: #e2e8f0;
-      overflow: hidden;
-    }
-
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: #0f172a;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: #334155;
-      border-radius: 3px;
-    }
-
-    .glass-panel {
-      background: rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-    }
-
-    .neon-border-blue {
-      box-shadow: 0 0 15px rgba(0, 243, 255, 0.1), inset 0 0 10px rgba(0, 243, 255, 0.05);
-      border: 1px solid rgba(0, 243, 255, 0.3);
-    }
-
-    .grid-bg {
-      background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-      background-size: 40px 40px;
-    }
-
-    #root:empty::before {
-      content: 'Initializing Neural Interface...';
-      display: block;
-      text-align: center;
-      margin-top: 40vh;
-      font-family: 'Fira Code', monospace;
-      color: #64748b;
-      animation: pulse 2s infinite;
-    }
-  </style>
+  <title>CodeSensei — Intelligent Code Architecture OS</title>
+  <meta name="description"
+    content="Feed it a repo. Get a complete architectural brain map, risk assessment, and execution simulation." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/index.css">
   <script type="importmap">
 {
   "imports": {
@@ -118,8 +29,7 @@
     "url": "https://esm.sh/url@^0.11.4"
   }
 }
-</script>
-  <link rel="stylesheet" href="/index.css">
+  </script>
 </head>
 
 <body>
@@ -129,20 +39,19 @@
   <!-- Fallback Error Display -->
   <script>
     window.onerror = function (msg, url, line) {
-      // Ignore resize loop errors from D3/ResizeObserver
       if (msg.includes('ResizeObserver')) return;
 
       const root = document.getElementById('root');
       if (root && root.childNodes.length === 0) {
         document.body.innerHTML = `
-             <div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; text-align:center; font-family:sans-serif; background:#020617; color:#ef4444;">
-               <h2 style="font-size:2rem; margin-bottom:1rem;">System Malfunction</h2>
-               <p style="color:#cbd5e1; max-width:500px; margin-bottom:2rem;">
+             <div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; text-align:center; font-family:'DM Sans',sans-serif; background:#080810; color:#FF3B5C;">
+               <h2 style="font-size:2rem; margin-bottom:1rem; font-family:'Syne',sans-serif;">System Malfunction</h2>
+               <p style="color:#8B8BA0; max-width:500px; margin-bottom:2rem;">
                  The React application failed to mount. <br/>
                  1. Ensure you are running the Frontend Development Server (e.g. Vite), not just the Backend.<br/>
                  2. Check the browser console for import errors.
                </p>
-               <div style="background:#1e293b; padding:1rem; border-radius:8px; text-align:left; font-family:monospace; color:#e2e8f0; font-size:0.8rem;">
+               <div style="background:#0E0E1A; padding:1rem; border-radius:12px; text-align:left; font-family:'JetBrains Mono',monospace; color:#F0EFFF; font-size:0.8rem; border:1px solid #1E1E35;">
                  Error: ${msg}
                </div>
              </div>
