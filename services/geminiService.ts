@@ -257,17 +257,69 @@ export const chatWithContext = async (
   analysis: CodeAnalysisResult
 ): Promise<string> => {
 
-  const context = `
-    SUMMARY: ${analysis.summary}
-    TECH STACK: ${analysis.techStack.join(', ')}
-    KEY RISKS: ${analysis.risks.map(r => r.title).join(', ')}
-  `;
+  const buildSystemPrompt = (analysisResults: CodeAnalysisResult) => {
+    const modules = (analysisResults.graphData?.nodes || []).filter((n: any) => n.group === 'module');
+    const deps = (analysisResults.graphData?.links || []).map((l: any) => `${l.source} → ${l.target}`);
+    const risks = analysisResults.risks || [];
+    const criticalCount = risks.filter(r => r.severity === 'critical').length;
+    const highCount = risks.filter(r => r.severity === 'high').length;
 
-  const messages = [
-    { role: "system", content: CHAT_SYSTEM_PROMPT + "\nCONTEXT:\n" + context },
+    return `You are an expert code analyst AI assistant for
+the CodeSensei platform. You have just completed a full
+multi-agent analysis of the following repository.
+
+REPOSITORY: (unknown)
+TOTAL FILES: (unknown)
+LANGUAGE: ${(analysisResults.techStack || [])[0] || 'unknown'}
+
+ARCHITECTURE SUMMARY:
+${analysisResults.architecture || analysisResults.summary || '(missing)'}
+
+MODULES DETECTED:
+${modules.length > 0
+  ? modules.map((m: any) => `- ${m.id}: ${String(m.details || '').slice(0, 160) || 'module'} (unknown files)`).join('\n')
+  : '(none detected)'}
+
+RISK ASSESSMENT:
+${risks.length > 0
+  ? risks.map(r => `- [${r.severity.toUpperCase()}] ${r.title}: ${r.description}`).join('\n')
+  : '(none detected)'}
+
+DEPENDENCY GRAPH:
+${deps.length > 0 ? deps.map(d => `- ${d}`).join('\n') : '(none detected)'}
+
+KEY METRICS:
+- Graph nodes: ${(analysisResults.graphData?.nodes?.length || 0)}
+- Critical risks: ${criticalCount}
+- High risks: ${highCount}
+
+INSTRUCTIONS:
+- Answer ALL questions specifically about THIS codebase only
+- Reference actual file names, module names, and risks found
+- If asked about something not in the analysis, say so clearly
+- Do not make up file names or modules that are not listed above
+- Keep answers concise and technical
+- When referencing risks, always mention their severity level`;
+  };
+
+  const trimMessages = (msgs: { role: string; content: string }[]) => {
+    const systemMsgs = msgs.filter(m => m.role === 'system');
+    const conversationMsgs = msgs.filter(m => m.role !== 'system');
+    const trimmed = conversationMsgs.slice(-20);
+    return [...systemMsgs, ...trimmed];
+  };
+
+  const systemMessage = {
+    role: "system",
+    content: buildSystemPrompt(analysis) + "\n\n" + CHAT_SYSTEM_PROMPT,
+  };
+
+  const conversation = [
     ...history.map(m => ({ role: m.role === 'model' ? 'assistant' : m.role, content: m.text })),
     { role: "user", content: newMessage }
   ];
+
+  const messages = trimMessages([systemMessage, ...conversation]);
 
   // Use the robust caller
   const result = await callOpenRouter(messages as any, false);

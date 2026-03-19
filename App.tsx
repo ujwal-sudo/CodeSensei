@@ -13,6 +13,7 @@ import GitHubImporter from './components/GitHubImporter';
 import { chatWithContext } from './services/geminiService';
 import { orchestrateAgentsStreaming } from './src/agentOrchestrator';
 import { FileNode, CodeAnalysisResult, ViewState, ChatMessage, PartialCodeAnalysisResult, AgentStage } from './types';
+import StitchBackground from './StitchBackground';
 
 type StarDot = { xPct: number; yPct: number; sizePx: number; opacity: number };
 
@@ -61,14 +62,6 @@ const HexSvg: React.FC<{ fill: string; stroke: string }> = ({ fill, stroke }) =>
     />
   </svg>
 );
-
-// ── Demo data ──
-const DEMO_FILES: FileNode[] = [
-  { path: "src/server.ts", language: "typescript", size: 1200, content: `import express from 'express';\nimport { createServer } from 'http';\nconst app = express();\nconst httpServer = createServer(app);\nhttpServer.listen(3000);` },
-  { path: "src/auth/authService.ts", language: "typescript", size: 800, content: `export class AuthService {\n  login(user: string, pass: string): boolean {\n    return true;\n  }\n}` },
-  { path: "src/utils/db.ts", language: "typescript", size: 500, content: `import { Pool } from 'pg';\nexport const pool = new Pool();\nexport const query = (text: string) => pool.query(text);` },
-  { path: "src/api/routes.ts", language: "typescript", size: 600, content: `import { Router } from 'express';\nconst router = Router();\nrouter.post('/login', (req, res) => res.json({ token: 'jwt' }));\nexport default router;` },
-];
 
 // ── NavBar Hex Glyph ──
 const HexGlyph: React.FC = () => (
@@ -138,6 +131,19 @@ export default function App() {
   };
 
   const handleFilesLoaded = (loadedFiles: FileNode[]) => {
+    if (!loadedFiles || loadedFiles.length === 0) {
+      console.error('[Import] No files returned from GitHub import.');
+      setStageMessage('Import failed: no files were fetched from this repository. Check your GitHub token or repo visibility.');
+      setCurrentStage('error');
+      return;
+    }
+
+    if (loadedFiles.length < 5) {
+      console.warn(`[Import] Only ${loadedFiles.length} files fetched — analysis may be incomplete.`);
+    }
+
+    console.log('[Import] Files being analyzed:', loadedFiles.map(f => f.path));
+
     setFiles(loadedFiles);
     setAnalysis(null);
     setPartialAnalysis(null);
@@ -193,7 +199,8 @@ export default function App() {
 
   const handleImportError = (msg: string) => {
     console.warn(`[Import Error] ${msg}`);
-    setTimeout(() => handleFilesLoaded(DEMO_FILES), 500);
+    setStageMessage(msg);
+    setCurrentStage('error');
   };
 
   const handleReset = () => {
@@ -251,6 +258,7 @@ export default function App() {
 
   return (
     <div className="app-layout">
+      <StitchBackground />
       {/* ── Navigation Bar ── */}
       <nav className="cs-nav">
         <div className="cs-nav-inner">
@@ -304,33 +312,6 @@ export default function App() {
         {showLanding && (
           <div className="cs-landing">
             <section className="cs-landing-hero">
-              <div className="cs-landing-grid" />
-
-              {/* Ambient glow blobs */}
-              <div className="cs-landing-blob" style={{ width: 400, height: 300, background: 'rgba(124,58,237,0.12)', top: '10%', left: '15%' }} />
-              <div className="cs-landing-blob" style={{ width: 350, height: 280, background: 'rgba(6,182,212,0.07)', top: '20%', right: '10%' }} />
-              <div className="cs-landing-blob" style={{ width: 500, height: 200, background: 'rgba(124,58,237,0.08)', bottom: '20%', left: '50%', transform: 'translateX(-50%)' }} />
-
-              {/* Stars */}
-              <div className="cs-landing-stars" aria-hidden="true">
-                {stars.map((s, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      position: 'absolute',
-                      left: `${s.xPct}%`,
-                      top: `${s.yPct}%`,
-                      width: s.sizePx,
-                      height: s.sizePx,
-                      borderRadius: 9999,
-                      background: '#ffffff',
-                      opacity: s.opacity,
-                    }}
-                  />
-                ))}
-              </div>
-
-              {/* Hero content */}
               <div
                 style={{
                   position: 'relative',
@@ -655,20 +636,30 @@ export default function App() {
             </div>
 
             {/* Architecture Summary — 2 cols */}
-            <div className="glass-card bento-2col">
+            <div className="glass-card bento-2col" style={{ minHeight: 320 }}>
               <CardHeader title="Architecture Summary" />
-              {hasSummary ? (
-                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, fontSize: 15 }}>
-                  {effectiveAnalysis.summary}
-                </p>
-              ) : (
-                <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Generating summary…</p>
-              )}
-              {hasArchitecture && (
-                <p style={{ color: 'var(--text-secondary)', fontSize: 14, whiteSpace: 'pre-line', marginTop: 'var(--space-4)', lineHeight: 1.7, borderTop: '1px solid var(--bg-border)', paddingTop: 'var(--space-4)' }}>
-                  {effectiveAnalysis.architecture}
-                </p>
-              )}
+              <div
+                style={{
+                  maxHeight: 420,
+                  overflowY: 'auto',
+                  paddingRight: 4,
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'rgba(124,58,237,0.3) transparent',
+                }}
+              >
+                {hasSummary ? (
+                  <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, fontSize: 15 }}>
+                    {effectiveAnalysis.summary}
+                  </p>
+                ) : (
+                  <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Generating summary…</p>
+                )}
+                {hasArchitecture && (
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 14, whiteSpace: 'pre-line', marginTop: 'var(--space-4)', lineHeight: 1.7, borderTop: '1px solid var(--bg-border)', paddingTop: 'var(--space-4)' }}>
+                    {effectiveAnalysis.architecture}
+                  </p>
+                )}
+              </div>
               {/* Tech stack tags */}
               {(effectiveAnalysis.techStack || []).length > 0 && (
                 <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
@@ -679,20 +670,123 @@ export default function App() {
               )}
             </div>
 
-            {/* Key Metrics — 1 col */}
+            {/* Key Metrics — compact grid */}
             <div className="glass-card">
               <CardHeader title="Key Metrics" cyan />
-              <div className="metric-block">
-                <div className="metric-number">{files.length || '—'}</div>
-                <div className="metric-label">Files Analyzed</div>
-              </div>
-              <div className="metric-block">
-                <div className="metric-number">{effectiveAnalysis.graphData?.nodes?.length || '—'}</div>
-                <div className="metric-label">Graph Nodes</div>
-              </div>
-              <div className="metric-block">
-                <div className="metric-number">{effectiveAnalysis.risks?.length || '—'}</div>
-                <div className="metric-label">Risks Found</div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: 12,
+                  padding: 16,
+                }}
+              >
+                {/* Files analyzed */}
+                <div
+                  style={{
+                    background: 'rgba(124,58,237,0.08)',
+                    border: '1px solid rgba(124,58,237,0.2)',
+                    borderRadius: 10,
+                    padding: '14px 16px',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: '#e2e8f0',
+                      lineHeight: 1,
+                      marginBottom: 6,
+                    }}
+                  >
+                    {files.length || '—'}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 500,
+                      color: '#64748b',
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Files Analyzed
+                  </div>
+                </div>
+
+                {/* Graph nodes */}
+                <div
+                  style={{
+                    background: 'rgba(124,58,237,0.08)',
+                    border: '1px solid rgba(124,58,237,0.2)',
+                    borderRadius: 10,
+                    padding: '14px 16px',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: '#e2e8f0',
+                      lineHeight: 1,
+                      marginBottom: 6,
+                    }}
+                  >
+                    {effectiveAnalysis.graphData?.nodes?.length || '—'}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 500,
+                      color: '#64748b',
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Graph Nodes
+                  </div>
+                </div>
+
+                {/* Risks found */}
+                {(() => {
+                  const riskCount = effectiveAnalysis.risks?.length || 0;
+                  const hasRisksAny = riskCount > 0;
+                  return (
+                    <div
+                      style={{
+                        background: hasRisksAny ? 'rgba(226,75,74,0.08)' : 'rgba(124,58,237,0.08)',
+                        border: hasRisksAny
+                          ? '1px solid rgba(226,75,74,0.3)'
+                          : '1px solid rgba(124,58,237,0.2)',
+                        borderRadius: 10,
+                        padding: '14px 16px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 28,
+                          fontWeight: 700,
+                          color: hasRisksAny ? '#e24b4a' : '#e2e8f0',
+                          lineHeight: 1,
+                          marginBottom: 6,
+                        }}
+                      >
+                        {riskCount || '—'}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 500,
+                          color: '#64748b',
+                          letterSpacing: '0.08em',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        Risks Found
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -766,11 +860,24 @@ export default function App() {
 
         {/* ══ Risk Center ══ */}
         {effectiveAnalysis && view === 'riskCenter' && hasRisks && (
-          <div style={{ animation: 'fade-up 400ms ease-out' }}>
-            <h2 className="text-title" style={{ marginBottom: 'var(--space-6)', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-              Risk Assessment Report
-              {isAnalyzing && <Loader2 size={20} className="spinner" style={{ color: 'var(--accent-indigo)' }} />}
-            </h2>
+          <div style={{ animation: 'fade-up 400ms ease-out', height: '100%', maxHeight: 'calc(100vh - 52px)', overflowY: 'auto' }}>
+            <div
+              style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                background: '#09090f',
+                paddingBottom: '12px',
+              }}
+            >
+              <h2 className="text-title" style={{ marginBottom: 'var(--space-3)', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                Risk Assessment Report
+                {isAnalyzing && <Loader2 size={20} className="spinner" style={{ color: 'var(--accent-indigo)' }} />}
+              </h2>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {effectiveAnalysis.risks!.length} risks across critical, high, medium, and low severity.
+              </span>
+            </div>
             <div className="risk-grid">
               {effectiveAnalysis.risks!.map(risk => (
                 <div key={risk.id} className={`risk-card risk-card--${risk.severity}`}>
@@ -797,6 +904,31 @@ export default function App() {
         {/* ══ Chat ══ */}
         {effectiveAnalysis && view === 'chat' && hasSummary && (
           <div className="chat-panel">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px',
+                padding: '6px 12px',
+                background: 'rgba(124,58,237,0.08)',
+                border: '1px solid rgba(124,58,237,0.2)',
+                borderRadius: '8px',
+                fontSize: '11px',
+                color: '#a78bfa',
+                marginBottom: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#7c3aed' }} />
+                Aware of {files.length} files · {(effectiveAnalysis.risks || []).length} risks · full repo context
+              </div>
+              {chatHistory.filter(m => m.role !== 'system').length > 0 && (
+                <span style={{ fontSize: '10px', color: '#4a4460' }}>
+                  {Math.floor(chatHistory.length / 2)} exchanges in memory
+                </span>
+              )}
+            </div>
             <div className="glass-card" style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', marginBottom: 'var(--space-4)' }}>
               <div className="chat-messages">
                 {chatHistory.length === 0 && (

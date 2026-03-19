@@ -186,33 +186,86 @@ const BrainMap: React.FC<BrainMapProps> = ({ data, highlightNodes = [], onNodeCl
       </div>
 
       {/* Detail Panel */}
-      <div className={`detail-panel ${selectedNode ? 'detail-panel--open' : ''}`}>
-        {selectedNode && (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
-              <span className="text-heading" style={{ fontSize: 16 }}>{selectedNode.id}</span>
-              <button className="icon-btn" onClick={() => setSelectedNode(null)}><X size={18} /></button>
+      {selectedNode && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 12,
+            right: 12,
+            width: 280,
+            background: '#13111f',
+            border: '1px solid rgba(124,58,237,0.3)',
+            borderRadius: 12,
+            padding: 16,
+            zIndex: 20,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            animation: 'slideIn 0.15s ease-out',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              marginBottom: 12,
+            }}
+          >
+            <div>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  color: '#7c3aed',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {selectedNode.group}
+              </span>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: '#e2e8f0',
+                  marginTop: 2,
+                  fontFamily: 'JetBrains Mono, monospace',
+                  wordBreak: 'break-all',
+                }}
+              >
+                {selectedNode.id}
+              </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>
-              {selectedNode.id}
+            <button
+              onClick={() => setSelectedNode(null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#4a4460',
+                cursor: 'pointer',
+                fontSize: 16,
+                padding: 0,
+                lineHeight: 1,
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Description */}
+          {selectedNode.details && (
+            <div
+              style={{
+                fontSize: 12,
+                color: '#94a3b8',
+                lineHeight: 1.6,
+                marginBottom: 12,
+              }}
+            >
+              {selectedNode.details}
             </div>
-            <div className="card-header">
-              <div className="card-accent-bar" />
-              <span className="card-title">Type</span>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 14, textTransform: 'capitalize' }}>{selectedNode.group}</p>
-            {selectedNode.details && (
-              <>
-                <div className="card-header" style={{ marginTop: 'var(--space-4)' }}>
-                  <div className="card-accent-bar card-accent-bar--cyan" />
-                  <span className="card-title">Details</span>
-                </div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{selectedNode.details}</p>
-              </>
-            )}
-          </>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

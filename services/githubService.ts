@@ -273,11 +273,13 @@ export const importRepository = async (
 
   onStatus?.('Backend offline. Fetching via browser...');
 
+  const envToken = (import.meta as any).env?.VITE_GITHUB_TOKEN as string | undefined;
+
   const octokitResult = await fetchViaOctokit(
     parsed.owner,
     parsed.repo,
     request.branch || '',
-    request.token,
+    request.token || envToken,
     onStatus
   );
 

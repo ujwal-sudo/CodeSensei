@@ -69,10 +69,10 @@
 html, body, #root {
   height: 100%;
   overflow: hidden;
+  background: #0d0d0d;
 }
 
 body {
-  background-color: var(--bg-base);
   color: var(--text-secondary);
   font-family: var(--font-body);
   font-size: 15px;
@@ -108,7 +108,7 @@ body {
   position: relative;
   height: calc(100vh - 52px);
   overflow: hidden;
-  background: var(--bg-base);
+  background: transparent;
 }
 
 .cs-landing-grid {
@@ -785,7 +785,7 @@ body {
   height: 100%;
   overflow-y: auto;
   padding-right: var(--space-2);
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1.8fr 1fr 1fr;
   grid-template-rows: auto auto auto;
   animation: fade-up 400ms ease-out;
 }
@@ -994,14 +994,20 @@ body {
 }
 .detail-panel--open { transform: translateX(0); }
 
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
 /* ── Risk Center ── */
 .risk-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: var(--space-5);
   overflow-y: auto;
   height: 100%;
   padding-right: var(--space-2);
+  padding-bottom: var(--space-6);
   animation: fade-up 400ms ease-out;
 }
 .risk-card {
