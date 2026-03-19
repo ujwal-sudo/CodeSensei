@@ -213,8 +213,18 @@ export default function App() {
   };
 
   const effectiveAnalysis = analysis || partialAnalysis;
+  const riskList = effectiveAnalysis?.risks || [];
+  const highCount = riskList.filter(r => {
+    const sev = (r.severity ?? '').toString().toLowerCase();
+    return sev === 'high' || sev === 'critical';
+  }).length;
+  const mediumCount = riskList.filter(r => (r.severity ?? '').toString().toLowerCase() === 'medium').length;
+  const lowCount = riskList.filter(r => (r.severity ?? '').toString().toLowerCase() === 'low').length;
+  const totalRisks = riskList.length;
+  const maxRiskCount = Math.max(highCount, mediumCount, lowCount, 1);
+
   const hasGraphData = (effectiveAnalysis?.graphData?.nodes?.length || 0) > 0;
-  const hasRisks = (effectiveAnalysis?.risks?.length || 0) > 0;
+  const hasRisks = riskList.length > 0;
   const hasSummary = !!effectiveAnalysis?.summary;
   const hasArchitecture = !!effectiveAnalysis?.architecture;
   const hasAnyData = hasGraphData || hasSummary || hasArchitecture || hasRisks;
@@ -248,13 +258,6 @@ export default function App() {
     { id: 'execution', label: 'Execution' },
     { id: 'synthesizer', label: 'Synthesizer' },
   ];
-
-  // ── Risk counts for dashboard ──
-  const riskCounts = effectiveAnalysis?.risks?.reduce((acc, r) => {
-    acc[r.severity] = (acc[r.severity] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>) || {};
-  const totalRisks = Object.values(riskCounts).reduce((a: number, b: number) => a + b, 0);
 
   return (
     <div className="app-layout">
@@ -636,11 +639,11 @@ export default function App() {
             </div>
 
             {/* Architecture Summary — 2 cols */}
-            <div className="glass-card bento-2col" style={{ minHeight: 320 }}>
+            <div className="glass-card bento-2col" style={{ height: 'fit-content' }}>
               <CardHeader title="Architecture Summary" />
               <div
                 style={{
-                  maxHeight: 420,
+                  maxHeight: 600,
                   overflowY: 'auto',
                   paddingRight: 4,
                   scrollbarWidth: 'thin',
@@ -671,7 +674,7 @@ export default function App() {
             </div>
 
             {/* Key Metrics — compact grid */}
-            <div className="glass-card">
+            <div className="glass-card" style={{ alignSelf: 'flex-start', height: 'fit-content' }}>
               <CardHeader title="Key Metrics" cyan />
               <div
                 style={{
@@ -794,21 +797,112 @@ export default function App() {
             {hasRisks && (
               <div className="glass-card bento-2col">
                 <CardHeader title="Risk Snapshot" />
-                {(['critical', 'high', 'medium', 'low'] as const).map(sev => {
-                  const count = riskCounts[sev] || 0;
-                  if (count === 0) return null;
-                  const colorMap = { critical: 'var(--risk-critical)', high: 'var(--risk-high)', medium: 'var(--risk-medium)', low: 'var(--risk-low)' };
-                  return (
-                    <div key={sev} className="risk-bar-row">
-                      <span className="risk-bar-label">{sev.charAt(0).toUpperCase() + sev.slice(1)}</span>
-                      <SeverityPill severity={sev} />
-                      <div className="risk-bar-track">
-                        <div className="risk-bar-fill" style={{ background: colorMap[sev], width: `${(count / Math.max(totalRisks as number, 1)) * 100}%` }} />
-                      </div>
-                      <span className="risk-bar-count" style={{ color: colorMap[sev] }}>{count}</span>
+                <div style={{ padding: 16 }}>
+                  {totalRisks === 0 ? (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '24px',
+                      color: '#4a4460',
+                      fontSize: '13px',
+                    }}>
+                      No risks detected
                     </div>
-                  );
-                })}
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {[
+                        {
+                          label: 'Critical / High',
+                          count: highCount,
+                          color: '#e24b4a',
+                          bgColor: 'rgba(226,75,74,0.15)',
+                          badgeColor: 'rgba(226,75,74,0.2)',
+                          badgeText: '#e24b4a',
+                        },
+                        {
+                          label: 'Medium',
+                          count: mediumCount,
+                          color: '#f59e0b',
+                          bgColor: 'rgba(245,158,11,0.15)',
+                          badgeColor: 'rgba(245,158,11,0.2)',
+                          badgeText: '#f59e0b',
+                        },
+                        {
+                          label: 'Low',
+                          count: lowCount,
+                          color: '#3ecf8e',
+                          bgColor: 'rgba(62,207,142,0.15)',
+                          badgeColor: 'rgba(62,207,142,0.2)',
+                          badgeText: '#3ecf8e',
+                        },
+                      ].map(bar => (
+                        <div key={bar.label}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            marginBottom: '6px',
+                          }}>
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              background: bar.badgeColor,
+                              color: bar.badgeText,
+                              minWidth: '60px',
+                              textAlign: 'center',
+                            }}>
+                              {bar.label}
+                            </span>
+                            <div style={{
+                              flex: 1,
+                              height: '6px',
+                              borderRadius: '3px',
+                              background: 'rgba(255,255,255,0.06)',
+                              overflow: 'hidden',
+                            }}>
+                              <div style={{
+                                height: '100%',
+                                borderRadius: '3px',
+                                background: bar.color,
+                                width: `${(bar.count / maxRiskCount) * 100}%`,
+                                transition: 'width 0.6s ease',
+                                minWidth: bar.count > 0 ? '6px' : '0',
+                              }} />
+                            </div>
+                            <span style={{
+                              fontSize: '13px',
+                              fontWeight: '700',
+                              color: bar.count > 0 ? bar.badgeText : '#4a4460',
+                              minWidth: '16px',
+                              textAlign: 'right',
+                            }}>
+                              {bar.count}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+
+                      <div style={{
+                        marginTop: '4px',
+                        paddingTop: '12px',
+                        borderTop: '1px solid rgba(255,255,255,0.06)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '11px',
+                        color: '#64748b',
+                      }}>
+                        <span>Total risks identified</span>
+                        <span style={{
+                          color: '#e2e8f0',
+                          fontWeight: '600',
+                        }}>
+                          {totalRisks}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -851,7 +945,7 @@ export default function App() {
                   {isAnalyzing && <Loader2 size={12} className="spinner" style={{ marginLeft: 8, display: 'inline' }} />}
                 </p>
                 <p style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  {effectiveAnalysis.graphData!.nodes.length} Modules · {effectiveAnalysis.graphData!.links.length} Edges
+                  {effectiveAnalysis.graphData?.nodes?.length ?? 0} Modules · {effectiveAnalysis.graphData?.links?.length ?? 0} Edges
                 </p>
               </div>
             </div>
@@ -875,11 +969,11 @@ export default function App() {
                 {isAnalyzing && <Loader2 size={20} className="spinner" style={{ color: 'var(--accent-indigo)' }} />}
               </h2>
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                {effectiveAnalysis.risks!.length} risks across critical, high, medium, and low severity.
+                {riskList.length} risks across critical, high, medium, and low severity.
               </span>
             </div>
             <div className="risk-grid">
-              {effectiveAnalysis.risks!.map(risk => (
+              {riskList.map(risk => (
                 <div key={risk.id} className={`risk-card risk-card--${risk.severity}`}>
                   <div className="risk-card__top">
                     <SeverityPill severity={risk.severity} />

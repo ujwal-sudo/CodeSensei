@@ -787,6 +787,7 @@ body {
   padding-right: var(--space-2);
   grid-template-columns: 1.8fr 1fr 1fr;
   grid-template-rows: auto auto auto;
+  align-items: flex-start;
   animation: fade-up 400ms ease-out;
 }
 .bento-full { grid-column: 1 / -1; }

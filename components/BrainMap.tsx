@@ -34,6 +34,30 @@ const BrainMap: React.FC<BrainMapProps> = ({ data, highlightNodes = [], onNodeCl
   useEffect(() => {
     if (!data || !svgRef.current) return;
 
+    // Guard: do nothing if no valid data
+    if (!data.nodes || !Array.isArray(data.nodes) || data.nodes.length === 0) return;
+    if (!data.links || !Array.isArray(data.links)) return;
+
+    // Build a Set of all valid node ids for O(1) lookup
+    const nodeIds = new Set(data.nodes.map((n: any) => n.id));
+
+    // Filter out any link that references a missing node
+    const safeLinks = data.links.filter((link: any) => {
+      const sourceId = typeof link.source === 'object'
+        ? link.source.id
+        : link.source;
+      const targetId = typeof link.target === 'object'
+        ? link.target.id
+        : link.target;
+
+      const valid = nodeIds.has(sourceId) && nodeIds.has(targetId);
+      if (!valid) {
+        console.warn('BrainMap: removing invalid link',
+          sourceId, '→', targetId);
+      }
+      return valid;
+    });
+
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
@@ -57,7 +81,7 @@ const BrainMap: React.FC<BrainMapProps> = ({ data, highlightNodes = [], onNodeCl
     zoomRef.current = zoom;
 
     const simulation = d3.forceSimulation(data.nodes as d3.SimulationNodeDatum[])
-      .force("link", d3.forceLink(data.links).id((d: any) => d.id).distance(100))
+      .force("link", d3.forceLink(safeLinks).id((d: any) => d.id).distance(100))
       .force("charge", d3.forceManyBody().strength(-300))
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collide", d3.forceCollide().radius((d: any) => getRadius(d) + 5));
