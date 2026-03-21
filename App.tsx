@@ -6,7 +6,6 @@ import {
   Shield, Zap, Terminal, Tag, Play, Sparkles, FolderOpen
 } from 'lucide-react';
 import BrainMap from './components/BrainMap';
-import ImpactSimulator from './components/ImpactSimulator';
 import ExecutionCinematic from './components/ExecutionCinematic';
 import { GlassPanel, NeonButton, SeverityPill, CardHeader } from './components/ui';
 import GitHubImporter from './components/GitHubImporter';
@@ -247,7 +246,6 @@ export default function App() {
     { id: 'brainMap', label: 'Brain Map', ready: hasGraphData },
     { id: 'riskCenter', label: 'Risk Center', ready: hasRisks || isAnalyzing },
     { id: 'chat', label: 'Chat', ready: hasAnyData },
-    { id: 'execution', label: 'Simulator', ready: !!analysis },
   ];
 
   const AGENTS = [
@@ -391,7 +389,6 @@ export default function App() {
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, fontSize: 11, background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.3)', color: 'var(--purple-mid)' }}>⬡ Brain Map</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, fontSize: 11, background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.3)', color: '#67e8f9' }}>⚡ Risk Scoring</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, fontSize: 11, background: 'rgba(62,207,142,0.07)', border: '1px solid rgba(62,207,142,0.3)', color: '#6ee7b7' }}>✦ AI Chat</span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, fontSize: 11, background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)', color: '#fcd34d' }}>◈ Impact Sim</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, fontSize: 11, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-secondary)' }}>↻ Execution Flow</span>
                 </div>
 
