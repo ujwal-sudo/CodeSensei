@@ -224,44 +224,66 @@ async function fetchViaOctokit(
   }
 }
 
+// Health check for backend availability
+async function checkBackendHealth(backendUrl: string): Promise<boolean> {
+  if (!backendUrl) return false;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s health check timeout
+    
+    const response = await fetch(`${backendUrl}/health`, {
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 // Main import function with 3-tier fallback
 export const importRepository = async (
   request: ImportRepoRequest,
   onStatus?: (status: string) => void
 ): Promise<ImportRepoResponse> => {
-  const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:3002';
+  const backendUrl = (import.meta as any).env?.VITE_BACKEND_URL || '';
 
-  // ============ TIER 1: Try Backend API ============
-  try {
-    onStatus?.('Connecting to backend server...');
+  // ============ TIER 1: Try Backend API (only if available) ============
+  if (backendUrl && await checkBackendHealth(backendUrl)) {
+    try {
+      onStatus?.('Connecting to backend server...');
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout for backend
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout for backend
 
-    const response = await fetch(`${backendUrl}/api/github/import`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(request),
-      signal: controller.signal
-    });
+      const response = await fetch(`${backendUrl}/api/github/import`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+        signal: controller.signal
+      });
 
-    clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (data.success) {
-      console.log('[GitHub Import] Success via backend');
-      return { ...data, source: 'backend' };
+      if (data.success) {
+        console.log('[GitHub Import] Success via backend');
+        return { ...data, source: 'backend' };
+      }
+
+      // Backend returned error - fall through to Octokit
+      console.log('[GitHub Import] Backend returned error, trying Octokit...');
+
+    } catch (error: any) {
+      // Network error or timeout - fall through to Octokit
+      console.log('[GitHub Import] Backend request failed, trying Octokit fallback...');
     }
-
-    // Backend returned error - fall through to Octokit
-    console.log('[GitHub Import] Backend returned error, trying Octokit...');
-
-  } catch (error: any) {
-    // Network error or timeout - fall through to Octokit
-    console.log('[GitHub Import] Backend unavailable, trying Octokit fallback...');
+  } else if (backendUrl) {
+    console.log('[GitHub Import] Backend health check failed, using Octokit directly...');
   }
 
   // ============ TIER 2: Try Octokit (Client-Side) ============
@@ -274,6 +296,14 @@ export const importRepository = async (
   onStatus?.('Backend offline. Fetching via browser...');
 
   const envToken = (import.meta as any).env?.VITE_GITHUB_TOKEN as string | undefined;
+  
+  // Debug logging for token verification
+  if (!envToken && !request.token) {
+    console.warn('[GitHub Import] No GitHub token found in environment. Using unauthenticated Octokit (60 req/hour rate limit).');
+    console.warn('[GitHub Import] To fix: Set VITE_GITHUB_TOKEN environment variable.');
+  } else if (envToken) {
+    console.log('[GitHub Import] Using GitHub token from VITE_GITHUB_TOKEN environment variable');
+  }
 
   const octokitResult = await fetchViaOctokit(
     parsed.owner,
