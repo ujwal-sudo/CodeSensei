@@ -102,19 +102,10 @@ npm install
 
 Create a `.env` file in the root:
 ```env
-# GitHub token for higher rate limits (5000/hour vs 60/hour unauthenticated)
-VITE_GITHUB_TOKEN=ghp_your_personal_access_token_here
-
-# OpenRouter API keys for AI analysis
-VITE_OPENROUTER_API_KEY=sk-or-v1-your_key_here
+VITE_OPENROUTER_API_KEY=your_key_here
 # Optional: add multiple keys for rotation
-VITE_OPENROUTER_API_KEY_2=sk-or-v1-your_second_key_here
-
-# Optional: Backend URL (if running Express backend separately)
-VITE_BACKEND_URL=http://localhost:3002
+VITE_OPENROUTER_API_KEY_2=your_second_key_here
 ```
-
-**Note for Vercel deployment:** Environment variables must be added via Vercel Dashboard (Settings → Environment Variables) with the `VITE_` prefix. Set them for Production, Preview, and Development environments, then redeploy.
 
 ### Run
 ```bash

@@ -51,7 +51,14 @@ export async function* orchestrateAgentsStreaming(
   console.log('Agent: Structure running...');
   let structure;
   try {
+    console.log('[TRACE] Orchestrator calling Structure Agent...');
     structure = await runStructureAgent(chunks);
+    console.log('[TRACE] Orchestrator received Structure Agent response:', {
+      modulesCount: structure?.modules?.length
+    });
+    if (!structure || !Array.isArray(structure.modules)) {
+      throw new Error("Structure agent returned malformed data: 'modules' array is missing from LLM response.");
+    }
     console.log('Agent: Structure completed successfully');
   } catch (error: any) {
     console.error('[Orchestrator] Structure Agent FAILED:', error.message);
@@ -164,6 +171,22 @@ export async function* orchestrateAgentsStreaming(
   ];
 
   // Add risks to partial result (if available)
+  if (risk && !Array.isArray(risk.risks)) {
+      console.warn(`[Orchestrator] Validation Warning: Risk Agent returned invalid risks array (got ${typeof risk.risks}). Defaulting to empty array.`);
+      risk.risks = [];
+  }
+  
+  if (execution && !Array.isArray(execution.steps)) {
+      console.warn(`[Orchestrator] Validation Warning: Execution Agent returned invalid steps array (got ${typeof execution.steps}). Defaulting to empty array.`);
+      execution.steps = [];
+  }
+
+  console.log("[DEBUG] Value before map:", {
+    riskRisks: risk ? risk.risks : null,
+    riskIsArray: risk ? Array.isArray(risk.risks) : false,
+    executionSteps: execution ? execution.steps : null,
+    executionIsArray: execution ? Array.isArray(execution.steps) : false
+  });
   partialResult = {
     ...partialResult,
     ...(risk ? {

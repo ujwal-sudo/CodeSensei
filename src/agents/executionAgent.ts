@@ -61,5 +61,12 @@ export const runExecutionAgent = async (chunks: CodeChunk[], structureSummary: s
     ${chunks.slice(0, 10).map(c => c.content).join('\n')}
   `;
   // Use PRO tier for quality execution analysis - reasoning required
-  return callGeminiAgent<ExecutionOutput>(AGENT_PROMPTS.EXECUTION, context, schema, 0.4, MODELS.PRO, ModelTier.PRO);
+  const response = await callGeminiAgent<ExecutionOutput>(AGENT_PROMPTS.EXECUTION, context, schema, 0.4, MODELS.PRO, ModelTier.PRO);
+  if (!response.steps || !Array.isArray(response.steps)) {
+    response.steps = [];
+  }
+  if (!response.visual_script || !Array.isArray(response.visual_script)) {
+    response.visual_script = [];
+  }
+  return response;
 };

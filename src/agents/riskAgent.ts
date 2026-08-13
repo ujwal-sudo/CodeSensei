@@ -42,6 +42,10 @@ export interface RiskOutput {
  */
 export const runRiskAgent = async (chunks: CodeChunk[]): Promise<RiskOutput> => {
   console.log('[Risk] Using PRO tier (OpenAI) for risk analysis...');
-  const context = chunks.map(c => `File: ${c.filePath}\n${c.content}`).join('\n---\n');
-  return callGeminiAgent<RiskOutput>(AGENT_PROMPTS.RISK, context, schema, 0.2, MODELS.PRO, ModelTier.PRO);
+  const context = chunks.slice(0, 15).map(c => `File: ${c.filePath}\n${c.content}`).join('\n---\n');
+  const response = await callGeminiAgent<RiskOutput>(AGENT_PROMPTS.RISK, context, schema, 0.2, MODELS.PRO, ModelTier.PRO);
+  if (!response.risks || !Array.isArray(response.risks)) {
+    response.risks = [];
+  }
+  return response;
 };

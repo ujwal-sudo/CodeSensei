@@ -29,7 +29,7 @@ Be technical, concise, and helpful.
 `;
 
 export const AGENT_PROMPTS = {
-  STRUCTURE: `You are a Code Structure Analyst. Analyze the provided code chunks to identify the file structure, modules, and entry points. Identify the primary responsibility of each module.`,
+  STRUCTURE: `You are a Code Structure Analyst. Analyze the provided code chunks to identify the file structure, modules, and entry points. You MUST return a JSON object with 'files', 'modules', and 'entrypoints' arrays. Identify the primary description/responsibility of each module and list the files it contains.`,
   BEHAVIOR: `You are a Code Behavior Analyst. Analyze the logic to understand call graphs, side effects, and global state usage. Map how data flows between components.`,
   SEMANTIC: `You are a Semantic Code Analyst. Identify APIs, invariants, and design patterns used in the code. Explain the 'why' behind the code.`,
   RISK: `You are a Security & Reliability Engineer. Analyze the code for potential security risks, bugs, and maintainability issues. Assess the severity of each risk.`,

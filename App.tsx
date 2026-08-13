@@ -6,6 +6,7 @@ import {
   Shield, Zap, Terminal, Tag, Play, Sparkles, FolderOpen
 } from 'lucide-react';
 import BrainMap from './components/BrainMap';
+import ImpactSimulator from './components/ImpactSimulator';
 import ExecutionCinematic from './components/ExecutionCinematic';
 import { GlassPanel, NeonButton, SeverityPill, CardHeader } from './components/ui';
 import GitHubImporter from './components/GitHubImporter';
@@ -146,6 +147,7 @@ export default function App() {
     setFiles(loadedFiles);
     setAnalysis(null);
     setPartialAnalysis(null);
+    setChatHistory([]);
     startStreamingAnalysis(loadedFiles);
   };
 
@@ -208,6 +210,7 @@ export default function App() {
     setFiles([]);
     setImportSource('local');
     setCompletedAgents([]);
+    setChatHistory([]);
     setView('dashboard');
   };
 
@@ -297,7 +300,7 @@ export default function App() {
           <div className="cs-nav-right">
             <div className="cs-status-pill">
               <span className="cs-pulse-dot" />
-              {isAnalyzing ? 'Analyzing · Live' : 'GPT-4o · Live'}
+              {isAnalyzing ? 'Analyzing · Live' : 'Nemotron / GPT-OSS · Live'}
             </div>
             <button className="cs-new-project" onClick={handleReset} type="button">
               New Project
@@ -532,7 +535,7 @@ export default function App() {
                     { number: '142+', plusPurple: true, label: 'Repos analyzed' },
                     { number: '4', label: 'AI agents' },
                     { number: '<30s', label: 'Full analysis' },
-                    { number: 'GPT-4o', label: 'Powered by' },
+                    { number: 'Nemotron', label: 'Powered by' },
                   ].map((s, i) => (
                     <React.Fragment key={s.label}>
                       <div style={{ textAlign: 'center', minWidth: 110 }}>
@@ -950,8 +953,9 @@ export default function App() {
         )}
 
         {/* ══ Risk Center ══ */}
-        {effectiveAnalysis && view === 'riskCenter' && hasRisks && (
-          <div style={{ animation: 'fade-up 400ms ease-out', height: '100%', maxHeight: 'calc(100vh - 52px)', overflowY: 'auto' }}>
+        {effectiveAnalysis && view === 'riskCenter' && (
+          hasRisks ? (
+            <div style={{ animation: 'fade-up 400ms ease-out', height: '100%', maxHeight: 'calc(100vh - 52px)', overflowY: 'auto' }}>
             <div
               style={{
                 position: 'sticky',
@@ -989,12 +993,22 @@ export default function App() {
                 </div>
               ))}
             </div>
-          </div>
+          ) : isAnalyzing ? (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+              <Loader2 className="spinner" size={24} style={{ marginRight: 12, color: 'var(--accent-indigo)' }} />
+              Analysis in progress... Finding security risks.
+            </div>
+          ) : (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+              No risks found.
+            </div>
+          )
         )}
 
         {/* ══ Chat ══ */}
-        {effectiveAnalysis && view === 'chat' && hasSummary && (
-          <div className="chat-panel">
+        {effectiveAnalysis && view === 'chat' && (
+          hasSummary ? (
+            <div className="chat-panel">
             <div
               style={{
                 display: 'flex',
@@ -1058,6 +1072,16 @@ export default function App() {
               </button>
             </div>
           </div>
+          ) : isAnalyzing ? (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+              <Loader2 className="spinner" size={24} style={{ marginRight: 12, color: 'var(--accent-indigo)' }} />
+              Analysis in progress... Building codebase context.
+            </div>
+          ) : (
+             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+              Chat is currently unavailable.
+            </div>
+          )
         )}
 
       </main>

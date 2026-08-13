@@ -34,11 +34,11 @@ const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
  */
 export const MODELS = {
   // High-volume tasks: Use Nemotron (fast & cheap)
-  STANDARD: "nvidia/nemotron-3-nano-30b-a3b:free",
+  STANDARD: "nvidia/nemotron-3.5-lightning:free",
   // Mid-tier tasks: Use Nemotron (fast & cheap) - mapping FLASH to Nemotron as well to save OpenAI for complex tasks
-  FLASH: "nvidia/nemotron-3-nano-30b-a3b:free",
+  FLASH: "nvidia/nemotron-3.5-lightning:free",
   // High-reasoning tasks: Use Nemotron (same model, data policy compatible)
-  PRO: "nvidia/nemotron-3-nano-30b-a3b:free"
+  PRO: "nvidia/nemotron-3.5-lightning:free"
 };
 
 // Model tiers for automatic key selection
@@ -96,11 +96,25 @@ function getModelTier(model: string): ModelTier {
 }
 
 function cleanJson(text: string): string {
-  // Remove markdown code blocks if present (```json ... ```)
-  let cleaned = text.replace(/```json/g, '').replace(/```/g, '');
-  // Trim whitespace
-  cleaned = cleaned.trim();
-  return cleaned;
+  let cleaned = text.trim();
+  
+  // Robust extraction: find outermost JSON object or array
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  const firstBracket = cleaned.indexOf('[');
+  const lastBracket = cleaned.lastIndexOf(']');
+  
+  const hasBrace = firstBrace !== -1 && lastBrace !== -1;
+  const hasBracket = firstBracket !== -1 && lastBracket !== -1;
+  
+  if (hasBrace && (!hasBracket || firstBrace < firstBracket)) {
+    return cleaned.substring(firstBrace, lastBrace + 1);
+  } else if (hasBracket) {
+    return cleaned.substring(firstBracket, lastBracket + 1);
+  }
+  
+  // Fallback to basic markdown cleanup if no clear JSON boundaries
+  return cleaned.replace(/```json/gi, '').replace(/```/g, '').trim();
 }
 
 function repairTruncatedJson(jsonStr: string): string {
@@ -200,8 +214,11 @@ ${userContext}`;
           { role: "user", content: prompt }
         ],
         temperature: temperature,
-        response_format: { type: "json_object" }
-      })
+        response_format: { 
+          type: "json_object"
+        }
+      }),
+      signal: AbortSignal.timeout(60000) // Prevent indefinite hanging if OpenRouter silently drops connection
     });
 
     if (!response.ok) {
@@ -211,24 +228,49 @@ ${userContext}`;
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
+    
+    // Diagnostic logging
+    console.log(`[BaseAgent] LLM API Response received. HTTP Status: ${response.status}`);
+    console.log(`[BaseAgent] Response keys: ${Object.keys(data).join(', ')}`);
+    if (data.choices && data.choices.length > 0) {
+      const choice = data.choices[0];
+      console.log(`[BaseAgent] First choice finish_reason: ${choice.finish_reason}`);
+      console.log(`[BaseAgent] Message structure: ${Object.keys(choice.message || {}).join(', ')}`);
+    } else {
+      console.log(`[BaseAgent] WARNING: No choices returned in response.`);
+    }
 
-    if (content) {
-      const cleanedText = cleanJson(content);
+    const content = data.choices?.[0]?.message?.content;
+    const contentStr = typeof content === 'string' ? content : "";
+    console.log(`[BaseAgent] Extracted content length: ${contentStr.length}`);
+    if (contentStr.length < 500) {
+       console.log(`[BaseAgent] Extracted content (preview): ${contentStr.substring(0, 100)}...`);
+    }
+
+    if (contentStr) {
+      console.log(`[TRACE] BaseAgent extracted content length: ${contentStr.length}`);
+      const cleanedText = cleanJson(contentStr);
+      console.log(`[TRACE] BaseAgent cleaned JSON length: ${cleanedText.length}`);
       try {
-        return JSON.parse(cleanedText) as T;
+        const parsed = JSON.parse(cleanedText) as T;
+        console.log(`[TRACE] BaseAgent successfully parsed JSON and is returning object`);
+        return parsed;
       } catch (parseError) {
         console.warn("JSON Parse Error. Attempting repair on truncated JSON...");
         try {
           const repairedText = repairTruncatedJson(cleanedText);
-          return JSON.parse(repairedText) as T;
+          const repairedParsed = JSON.parse(repairedText) as T;
+          console.log(`[TRACE] BaseAgent successfully repaired and parsed JSON`);
+          return repairedParsed;
         } catch (repairError) {
-          console.error("Critical: Failed to parse JSON even after repair.", content.slice(-100));
+          console.error("Critical: Failed to parse JSON even after repair.", contentStr.slice(-100));
           throw new Error("Agent response was malformed.");
         }
       }
     }
-    throw new Error("Agent returned empty response");
+    
+    console.error(`[BaseAgent] Empty response diagnostic data:`, JSON.stringify(data).substring(0, 500));
+    throw new Error(`Structure Agent returned an empty response. The LLM request completed without usable content. Provider/Model: ${model}`);
   });
 }
 
