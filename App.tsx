@@ -993,6 +993,7 @@ export default function App() {
                 </div>
               ))}
             </div>
+          </div>
           ) : isAnalyzing ? (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
               <Loader2 className="spinner" size={24} style={{ marginRight: 12, color: 'var(--accent-indigo)' }} />
