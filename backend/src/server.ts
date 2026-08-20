@@ -4,13 +4,6 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import githubRoutes from "./routes/github";
-import { validateConnection } from "./githubClient"; // Keeping old check for now if needed, or remove
-import { fileURLToPath } from 'url';
-
-// Fix for __dirname in ESM environments
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 // Load environment variables
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 

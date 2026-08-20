@@ -91,7 +91,7 @@ const BrainMap: React.FC<BrainMapProps> = ({ data, highlightNodes = [], onNodeCl
       .selectAll("line")
       .data(data.links)
       .join("line")
-      .attr("stroke", "#1E1E35")
+      .attr("stroke", "#434936")
       .attr("stroke-width", 1)
       .attr("stroke-opacity", 0.6);
 
@@ -114,7 +114,7 @@ const BrainMap: React.FC<BrainMapProps> = ({ data, highlightNodes = [], onNodeCl
       })
       .on("mouseenter", function(event, d) {
         if ((d as GraphNode).group === 'file') {
-          d3.select(this).attr("stroke", "#00D4FF");
+          d3.select(this).attr("stroke", "#b7f34a");
         }
       })
       .on("mouseleave", function(event, d) {
@@ -138,7 +138,7 @@ const BrainMap: React.FC<BrainMapProps> = ({ data, highlightNodes = [], onNodeCl
     // Handle Highlighting
     if (highlightNodes.length > 0) {
       node.transition().duration(300)
-        .attr("stroke", (d) => highlightNodes.includes(d.id) ? "#6C63FF" : getNodeStroke(d as GraphNode))
+        .attr("stroke", (d) => highlightNodes.includes(d.id) ? "#b7f34a" : getNodeStroke(d as GraphNode))
         .attr("stroke-width", (d) => highlightNodes.includes(d.id) ? 3 : 1.5);
     }
 
@@ -175,14 +175,14 @@ const BrainMap: React.FC<BrainMapProps> = ({ data, highlightNodes = [], onNodeCl
     return 7;
   }
   function getNodeFill(d: GraphNode): string {
-    if (d.group === 'external') return '#6C63FF';
-    if (d.group === 'module') return '#13131F';
-    return '#0E0E1A';
+    if (d.group === 'external') return '#b7f34a';
+    if (d.group === 'module') return '#1a1c1b';
+    return '#121413';
   }
   function getNodeStroke(d: GraphNode): string {
-    if (d.group === 'external') return '#6C63FF';
-    if (d.group === 'module') return 'rgba(108,99,255,0.5)';
-    return '#1E1E35';
+    if (d.group === 'external') return '#b7f34a';
+    if (d.group === 'module') return 'rgba(183, 243, 74, 0.5)';
+    return '#434936';
   }
 
   const handleZoom = (factor: number) => {
@@ -217,8 +217,8 @@ const BrainMap: React.FC<BrainMapProps> = ({ data, highlightNodes = [], onNodeCl
             top: 12,
             right: 12,
             width: 280,
-            background: '#13111f',
-            border: '1px solid rgba(124,58,237,0.3)',
+            background: '#1a1c1b',
+            border: '1px solid #434936',
             borderRadius: 12,
             padding: 16,
             zIndex: 20,
@@ -240,7 +240,7 @@ const BrainMap: React.FC<BrainMapProps> = ({ data, highlightNodes = [], onNodeCl
                   fontSize: 10,
                   fontWeight: 600,
                   letterSpacing: '0.08em',
-                  color: '#7c3aed',
+                  color: '#b7f34a',
                   textTransform: 'uppercase',
                 }}
               >

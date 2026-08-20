@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { AlertCircle, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { importRepository } from '../services/githubService';
@@ -21,8 +20,9 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
 
   const normalizedRepoPath = useMemo(() => repoPath.replace(/^github\.com\s*\/\s*/i, '').trim(), [repoPath]);
 
-  const handleImport = async () => {
-    if (!url) {
+  const handleImport = async (overrideUrl?: string) => {
+    const targetUrl = typeof overrideUrl === 'string' ? overrideUrl : url;
+    if (!targetUrl) {
       setError("Please enter a valid GitHub URL");
       return;
     }
@@ -34,7 +34,7 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
 
     try {
       const result = await importRepository(
-        { url, branch, token },
+        { url: targetUrl, branch, token },
         (statusUpdate) => setStatus(statusUpdate)
       );
 
@@ -65,11 +65,11 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
         style={{
           display: 'flex',
           alignItems: 'center',
-          background: 'rgba(19,17,31,0.9)',
-          border: `1px solid ${focused ? 'rgba(124,58,237,0.7)' : 'rgba(124,58,237,0.3)'}`,
+          background: 'var(--surface-container-high)',
+          border: `1px solid ${focused ? '#b7f34a' : '#434936'}`,
           borderRadius: 12,
           padding: '6px 6px 6px 16px',
-          boxShadow: focused ? '0 0 0 3px rgba(124,58,237,0.1)' : 'none',
+          boxShadow: focused ? '0 0 0 3px rgba(183,243,74,0.1)' : 'none',
           transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
         }}
       >
@@ -109,8 +109,8 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
             border: 'none',
             outline: 'none',
             fontSize: 13,
-            color: 'var(--text-primary)',
-            fontFamily: 'var(--font-mono)',
+            color: '#e2e3e0',
+            fontFamily: 'monospace',
             minWidth: 0,
           }}
         />
@@ -123,8 +123,8 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
             borderRadius: 8,
             fontSize: 12,
             fontWeight: 600,
-            background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-            color: '#fff',
+            background: '#b7f34a',
+            color: '#233600',
             border: 'none',
             cursor: loading ? 'not-allowed' : 'pointer',
             display: 'inline-flex',
@@ -139,32 +139,34 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
       </div>
 
       {/* Or divider */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0', color: '#2e2a45', fontSize: 11 }}>
-        <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0', color: '#c3c9b0', fontSize: 11 }}>
+        <div style={{ flex: 1, height: 1, background: '#434936' }} />
         <div style={{ whiteSpace: 'nowrap' }}>or try an example</div>
-        <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+        <div style={{ flex: 1, height: 1, background: '#434936' }} />
       </div>
 
       {/* Examples */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {['vercel/next.js', 'facebook/react', 'supabase/supabase'].map((ex) => (
+        {['ujwal-sudo/CodeSensei', 'ujwal-sudo/TalkToWeb'].map((ex) => (
           <button
             key={ex}
             type="button"
             onClick={() => {
+              const newUrl = `https://github.com/${ex}`;
               setRepoPath(ex);
-              setUrl(`https://github.com/${ex}`);
+              setUrl(newUrl);
               setError(null);
+              handleImport(newUrl);
             }}
             style={{
               padding: '4px 10px',
               borderRadius: 6,
               fontSize: 11,
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              color: 'var(--text-muted)',
+              background: '#1a1c1b',
+              border: '1px solid #434936',
+              color: '#c3c9b0',
               cursor: 'pointer',
-              fontFamily: 'var(--font-mono)',
+              fontFamily: 'monospace',
             }}
           >
             {ex}
@@ -175,12 +177,12 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
       {/* Error */}
       {error && (
         <div style={{
-          padding: 'var(--space-3)',
-          background: 'rgba(226,75,74,0.10)',
-          border: '1px solid rgba(226,75,74,0.35)',
-          borderRadius: 'var(--radius-md)',
-          display: 'flex', alignItems: 'start', gap: 'var(--space-2)',
-          fontSize: 12, color: 'var(--red)',
+          padding: '12px',
+          background: '#93000a',
+          border: '1px solid #ffb4ab',
+          borderRadius: '6px',
+          display: 'flex', alignItems: 'start', gap: '8px',
+          fontSize: 12, color: '#ffdad6',
           marginTop: 12,
         }}>
           <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
@@ -191,18 +193,18 @@ const GitHubImporter: React.FC<GitHubImporterProps> = ({ onImportComplete, onErr
       {/* Loading Status */}
       {loading && !error && (
         <div style={{
-          padding: 'var(--space-3)',
-          background: 'rgba(19,17,31,0.7)',
-          border: '1px solid rgba(255,255,255,0.07)',
-          borderRadius: 'var(--radius-md)',
+          padding: '12px',
+          background: '#1e201f',
+          border: '1px solid #434936',
+          borderRadius: '6px',
           marginTop: 12,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-            <Loader2 size={14} className="spinner" style={{ color: 'var(--purple-strong)' }} />
-            <span style={{ color: 'var(--text-secondary)' }}>{status}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'monospace', fontSize: 12 }}>
+            <Loader2 size={14} className="spinner" style={{ color: '#b7f34a' }} />
+            <span style={{ color: '#e2e3e0' }}>{status}</span>
           </div>
           {status.includes('Browser') && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-2)', fontSize: 10, color: 'var(--amber)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', fontSize: 10, color: '#ffb4ab' }}>
               <CloudOff size={12} />
               <span>Backend offline — using GitHub API directly</span>
             </div>

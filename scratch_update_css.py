@@ -1,4 +1,13 @@
+import re
 
+with open('index.css', 'r') as f:
+    css = f.read()
+
+# Replace :root tokens with a simple import or just clear the old ones if they conflict.
+# But actually, codesensei-tokens.css is loaded. We just need to update index.css global styles and nav styles.
+# Let's just rewrite the entire index.css to be a clean file that uses codesensei-tokens.css!
+
+new_css = """
 /* ============================================================
    CodeSensei — Warm Slate × Neural Bloom (Landing)
    ============================================================ */
@@ -274,3 +283,9 @@ html, body, #root {
   background: var(--cs-accent);
 }
 
+"""
+
+with open('index.css', 'w') as f:
+    f.write(new_css)
+
+print("Updated index.css")

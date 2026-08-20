@@ -1,0 +1,460 @@
+/* ============================================================
+   CODESENSEI — Design System Tokens v1.0
+   Warm Slate × Outfit × JetBrains Mono × Neural Bloom
+   ============================================================ */
+
+/* ── 1. COLOUR ─────────────────────────────────────────────── */
+
+:root {
+
+  /* Base palette */
+  --cs-bg:           #F9F8F6;   /* page background */
+  --cs-surface-1:    #F2F0EB;   /* canvas / panel background */
+  --cs-surface-2:    #E6E2DA;   /* nested surface / hover state */
+  --cs-border:       #E6E2DA;   /* default border */
+  --cs-border-mid:   #C4BFB5;   /* stronger border / divider */
+  --cs-mid:          #C4BFB5;   /* mid-tone fills */
+
+  /* Text */
+  --cs-text-primary:   #3A3630; /* headings, labels */
+  --cs-text-secondary: #4B4440; /* body copy */
+  --cs-text-muted:     #8C8880; /* captions, timestamps, placeholders */
+  --cs-text-invert:    #FAF7F2; /* text on dark surfaces */
+
+  /* Accent */
+  --cs-accent:         #C05A3A; /* primary accent — terracotta */
+  --cs-accent-hover:   #A84D31; /* accent hover / pressed */
+  --cs-accent-subtle:  #C05A3A18; /* tinted backgrounds */
+  --cs-accent-border:  #C05A3A44; /* tinted borders */
+
+  /* Dark / invert */
+  --cs-dark:           #1A1814; /* dark card / hero splash */
+  --cs-dark-surface:   #2A2520; /* dark card border */
+
+  /* Semantic */
+  --cs-success:        #5A7A6A;
+  --cs-success-subtle: #5A7A6A18;
+  --cs-success-border: #5A7A6A44;
+
+  --cs-warning:        #C87C2A;
+  --cs-warning-subtle: #C87C2A18;
+  --cs-warning-border: #C87C2A44;
+
+  --cs-danger:         #B84040;
+  --cs-danger-subtle:  #B8404018;
+  --cs-danger-border:  #B8404044;
+
+  --cs-info:           #5A7AB8;
+  --cs-info-subtle:    #5A7AB818;
+  --cs-info-border:    #5A7AB844;
+
+  /* ── Agent colours ── */
+  --cs-agent-structure:        #C05A3A;
+  --cs-agent-structure-subtle: #C05A3A18;
+  --cs-agent-structure-border: #C05A3A44;
+
+  --cs-agent-behavior:         #C87C2A;
+  --cs-agent-behavior-subtle:  #C87C2A18;
+  --cs-agent-behavior-border:  #C87C2A44;
+
+  --cs-agent-risk:             #B84040;
+  --cs-agent-risk-subtle:      #B8404018;
+  --cs-agent-risk-border:      #B8404044;
+
+  --cs-agent-execution:        #5A7A6A;
+  --cs-agent-execution-subtle: #5A7A6A18;
+  --cs-agent-execution-border: #5A7A6A44;
+
+  --cs-agent-impact:           #8A6BAA;
+  --cs-agent-impact-subtle:    #8A6BAA18;
+  --cs-agent-impact-border:    #8A6BAA44;
+
+  /* Dark-mode agent variants (warmer on dark bg) */
+  --cs-agent-structure-dark:   #E8896A;
+  --cs-agent-behavior-dark:    #E8A060;
+  --cs-agent-risk-dark:        #E06060;
+  --cs-agent-execution-dark:   #7AAA8A;
+  --cs-agent-impact-dark:      #AA8ACC;
+
+
+  /* ── 2. TYPOGRAPHY ─────────────────────────────────────────── */
+
+  --cs-font-ui:   'Outfit', system-ui, -apple-system, sans-serif;
+  --cs-font-code: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* Scale */
+  --cs-text-xs:   11px;
+  --cs-text-sm:   12px;
+  --cs-text-base: 13px;
+  --cs-text-md:   14px;
+  --cs-text-lg:   16px;
+  --cs-text-xl:   20px;
+  --cs-text-2xl:  24px;
+  --cs-text-3xl:  30px;
+
+  /* Weight */
+  --cs-weight-light:   300;
+  --cs-weight-regular: 400;
+  --cs-weight-medium:  500;
+  --cs-weight-semibold:600;
+  --cs-weight-bold:    700;
+
+  /* Letter spacing */
+  --cs-tracking-tight:  -0.01em;
+  --cs-tracking-normal:  0em;
+  --cs-tracking-wide:    0.04em;
+  --cs-tracking-wider:   0.08em;
+  --cs-tracking-widest:  0.15em;  /* wordmark */
+  --cs-tracking-label:   0.06em;  /* uppercase labels */
+
+  /* Line height */
+  --cs-leading-tight:  1.15;
+  --cs-leading-snug:   1.35;
+  --cs-leading-normal: 1.55;
+  --cs-leading-relaxed:1.7;
+
+
+  /* ── 3. SURFACES ───────────────────────────────────────────── */
+
+  /* Border radius */
+  --cs-radius-sm:   6px;   /* badges, chips, code blocks */
+  --cs-radius-md:   8px;   /* inner elements, nav items */
+  --cs-radius-lg:   10px;  /* stat cards, nested cards */
+  --cs-radius-xl:   12px;  /* cards */
+  --cs-radius-2xl:  14px;  /* canvas / panel containers */
+  --cs-radius-full: 9999px;/* pills, dots, agent circles */
+
+  /* Border width */
+  --cs-border-width: 0.5px;
+
+  /* Shadows — none by default (border-only surfaces) */
+  --cs-shadow-none: none;
+  /* Elevation only used for modals/popovers */
+  --cs-shadow-float: 0 4px 24px 0 rgba(58, 54, 48, 0.08),
+                     0 1px  4px 0 rgba(58, 54, 48, 0.04);
+
+  /* Padding scale */
+  --cs-space-1:  4px;
+  --cs-space-2:  6px;
+  --cs-space-3:  8px;
+  --cs-space-4:  10px;
+  --cs-space-5:  12px;
+  --cs-space-6:  14px;
+  --cs-space-7:  16px;
+  --cs-space-8:  20px;
+  --cs-space-9:  24px;
+  --cs-space-10: 32px;
+
+
+  /* ── 4. ICONOGRAPHY ────────────────────────────────────────── */
+
+  /* Lucide — 1px stroke, 18px default */
+  --cs-icon-size-sm:     14px;
+  --cs-icon-size-base:   18px;
+  --cs-icon-size-lg:     20px;
+  --cs-icon-stroke:      1;     /* pass as stroke-width to SVG */
+
+
+  /* ── 5. DATA VISUALISATION ─────────────────────────────────── */
+
+  /* Graph node sizes */
+  --cs-node-agent-size:  32px;  /* agent circle diameter */
+  --cs-node-chip-radius: var(--cs-radius-sm);
+  --cs-node-chip-px:     9px;
+  --cs-node-chip-py:     3px;
+
+  /* Edge strokes */
+  --cs-edge-width:         1px;
+  --cs-edge-color:         #C4BFB5;
+  --cs-edge-risk-color:    #B84040;
+  --cs-edge-risk-dash:     4 3;  /* stroke-dasharray */
+
+  /* Status dot */
+  --cs-status-dot-size:    8px;
+  --cs-status-dot-border:  1.5px solid #fff;
+
+  /* Agent state colours */
+  --cs-state-waiting-bg:   #E6E2DA;
+  --cs-state-waiting-fg:   #C4BFB5;
+  --cs-state-running-bg:   #C87C2A18;
+  --cs-state-running-fg:   #C87C2A;
+  --cs-state-running-dot:  #C87C2A;
+  --cs-state-complete-bg:  #5A7A6A;
+  --cs-state-complete-fg:  #fff;
+  --cs-state-complete-dot: #5A7A6A;
+  --cs-state-flagged-bg:   #B84040;
+  --cs-state-flagged-fg:   #fff;
+  --cs-state-flagged-ring: #B8404033;
+  --cs-state-skipped-bg:   #E6E2DA;
+  --cs-state-skipped-fg:   #C4BFB5;
+
+
+  /* ── 6. MOTION ─────────────────────────────────────────────── */
+
+  /* Durations */
+  --cs-duration-instant:  80ms;
+  --cs-duration-fast:     200ms;
+  --cs-duration-base:     300ms;
+  --cs-duration-moderate: 500ms;
+  --cs-duration-slow:     600ms;
+  --cs-duration-cinematic:1400ms;
+
+  /* Easings */
+  --cs-ease-default:   cubic-bezier(0.4, 0, 0.2, 1);   /* standard */
+  --cs-ease-out:       cubic-bezier(0, 0, 0.2, 1);      /* enter */
+  --cs-ease-in:        cubic-bezier(0.4, 0, 1, 1);      /* exit */
+  --cs-ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);/* agent activation */
+  --cs-ease-smooth:    cubic-bezier(0.4, 0, 0.2, 1);    /* progress bar */
+
+  /* Stagger delays */
+  --cs-stagger-node:   150ms;  /* graph node bloom */
+  --cs-stagger-log:    200ms;  /* log line entry */
+  --cs-stagger-agent:  160ms;  /* agent sequential wake */
+
+  /* Named transitions */
+  --cs-transition-default:   all var(--cs-duration-base) var(--cs-ease-default);
+  --cs-transition-agent:     all var(--cs-duration-slow) var(--cs-ease-spring);
+  --cs-transition-progress:  width var(--cs-duration-cinematic) var(--cs-ease-smooth);
+  --cs-transition-fade:      opacity var(--cs-duration-moderate) var(--cs-ease-out),
+                             transform var(--cs-duration-moderate) var(--cs-ease-out);
+
+  /* Risk pulse animation — apply via class */
+  --cs-pulse-color:    #B8404033;
+  --cs-pulse-duration: 1200ms;
+
+
+  /* ── 7. BRANDING ───────────────────────────────────────────── */
+
+  /* Neural Bloom mark */
+  --cs-logo-core-color:     #C05A3A;
+  --cs-logo-core-size:      10px;   /* radius of centre circle in 64px viewBox */
+  --cs-logo-node-radius:    4.5px;  /* outer agent node radius */
+  --cs-logo-edge-opacity:   0.6;
+  --cs-logo-crosslink-opacity: 0.2;
+
+  /* Wordmark */
+  --cs-wordmark-font:       var(--cs-font-ui);
+  --cs-wordmark-weight:     var(--cs-weight-bold);
+  --cs-wordmark-tracking:   var(--cs-tracking-widest);
+  --cs-wordmark-transform:  uppercase;
+
+  /* Tagline */
+  --cs-tagline-weight:      var(--cs-weight-light);
+  --cs-tagline-tracking:    0.12em;
+  --cs-tagline-color:       var(--cs-text-muted);
+}
+
+
+/* ── Keyframes ─────────────────────────────────────────────── */
+
+/* Risk agent pulsing ring */
+@keyframes cs-pulse-ring {
+  0%   { box-shadow: 0 0 0 0   var(--cs-pulse-color); }
+  60%  { box-shadow: 0 0 0 6px var(--cs-pulse-color); }
+  100% { box-shadow: 0 0 0 0   transparent; }
+}
+
+/* Agent activation scale pop */
+@keyframes cs-agent-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* Node bloom in */
+@keyframes cs-bloom-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Log line drift up */
+@keyframes cs-log-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Progress shimmer (running state) */
+@keyframes cs-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+
+/* ── Utility classes ───────────────────────────────────────── */
+
+/* Agent circles */
+.cs-agent-circle {
+  width:  var(--cs-node-agent-size);
+  height: var(--cs-node-agent-size);
+  border-radius: var(--cs-radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--cs-font-ui);
+  font-size: var(--cs-text-xs);
+  font-weight: var(--cs-weight-semibold);
+  position: relative;
+  transition: var(--cs-transition-agent);
+}
+
+.cs-agent-circle.waiting   { background: var(--cs-state-waiting-bg);  color: var(--cs-state-waiting-fg);  }
+.cs-agent-circle.running   { background: var(--cs-state-running-bg);  color: var(--cs-state-running-fg);  }
+.cs-agent-circle.complete  { background: var(--cs-state-complete-bg); color: var(--cs-state-complete-fg); }
+.cs-agent-circle.flagged   { background: var(--cs-state-flagged-bg);  color: var(--cs-state-flagged-fg);
+                             animation: cs-pulse-ring var(--cs-pulse-duration) var(--cs-ease-default) infinite; }
+.cs-agent-circle.skipped   { background: var(--cs-state-skipped-bg);  color: var(--cs-state-skipped-fg); }
+.cs-agent-circle.activating { animation: cs-agent-pop var(--cs-duration-slow) var(--cs-ease-spring); }
+
+/* Status dot */
+.cs-agent-circle .cs-status-dot {
+  position: absolute;
+  bottom: -2px; right: -2px;
+  width:  var(--cs-status-dot-size);
+  height: var(--cs-status-dot-size);
+  border-radius: var(--cs-radius-full);
+  border: var(--cs-status-dot-border);
+  transition: background var(--cs-duration-fast) var(--cs-ease-default);
+}
+
+/* Graph chips */
+.cs-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--cs-node-chip-py) var(--cs-node-chip-px);
+  border-radius: var(--cs-node-chip-radius);
+  font-family: var(--cs-font-ui);
+  font-size: var(--cs-text-xs);
+  font-weight: var(--cs-weight-medium);
+  border: var(--cs-border-width) solid;
+  animation: cs-bloom-in var(--cs-duration-moderate) var(--cs-ease-out) both;
+}
+
+.cs-chip.root      { background: var(--cs-agent-structure-subtle);  color: var(--cs-agent-structure);  border-color: var(--cs-agent-structure-border); }
+.cs-chip.function  { background: var(--cs-info-subtle);              color: var(--cs-info);              border-color: var(--cs-info-border); }
+.cs-chip.risk      { background: var(--cs-danger-subtle);            color: var(--cs-danger);            border-color: var(--cs-danger); border-style: dashed; }
+.cs-chip.inactive  { background: var(--cs-surface-2);               color: var(--cs-text-muted);        border-color: var(--cs-border-mid); }
+
+/* State badges */
+.cs-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--cs-radius-sm);
+  font-family: var(--cs-font-ui);
+  font-size: var(--cs-text-xs);
+  font-weight: var(--cs-weight-medium);
+  border: var(--cs-border-width) solid;
+}
+
+.cs-badge.idle     { background: var(--cs-surface-2);           color: var(--cs-text-muted);         border-color: var(--cs-border-mid); }
+.cs-badge.running  { background: var(--cs-warning-subtle);       color: var(--cs-warning);            border-color: var(--cs-warning-border); }
+.cs-badge.complete { background: var(--cs-success-subtle);       color: var(--cs-success);            border-color: var(--cs-success-border); }
+.cs-badge.flagged  { background: var(--cs-danger-subtle);        color: var(--cs-danger);             border-color: var(--cs-danger-border); }
+.cs-badge.skipped  { background: var(--cs-surface-2);           color: var(--cs-border-mid);         border-color: var(--cs-surface-2); }
+
+/* Log line entry */
+.cs-log-line {
+  font-family: var(--cs-font-code);
+  font-size: var(--cs-text-sm);
+  line-height: var(--cs-leading-relaxed);
+  animation: cs-log-in var(--cs-duration-slow) var(--cs-ease-out) both;
+}
+
+.cs-log-line .ts     { color: var(--cs-text-muted); margin-right: 8px; }
+.cs-log-line .ok     { color: var(--cs-success); }
+.cs-log-line .warn   { color: var(--cs-danger); }
+.cs-log-line .accent { color: var(--cs-accent); }
+
+/* Progress bar */
+.cs-progress {
+  height: 3px;
+  background: var(--cs-surface-2);
+  border-radius: var(--cs-radius-full);
+  overflow: hidden;
+}
+
+.cs-progress-bar {
+  height: 100%;
+  border-radius: var(--cs-radius-full);
+  background: var(--cs-accent);
+  width: 0%;
+  transition: var(--cs-transition-progress);
+}
+
+.cs-progress-bar.running {
+  background: linear-gradient(
+    90deg,
+    var(--cs-accent) 0%,
+    #E8896A 50%,
+    var(--cs-accent) 100%
+  );
+  background-size: 200% auto;
+  animation: cs-shimmer 1.6s var(--cs-ease-default) infinite;
+}
+
+/* Canvas / card surfaces */
+.cs-canvas {
+  background: var(--cs-surface-1);
+  border-radius: var(--cs-radius-2xl);
+  padding: var(--cs-space-7);
+  border: var(--cs-border-width) solid var(--cs-border);
+}
+
+.cs-card {
+  background: #ffffff;
+  border-radius: var(--cs-radius-xl);
+  border: var(--cs-border-width) solid var(--cs-border);
+  padding: var(--cs-space-6);
+}
+
+.cs-card-dark {
+  background: var(--cs-dark);
+  border-radius: var(--cs-radius-xl);
+  border: var(--cs-border-width) solid var(--cs-dark-surface);
+  padding: var(--cs-space-6);
+}
+
+/* Card label */
+.cs-card-label {
+  font-family: var(--cs-font-ui);
+  font-size: var(--cs-text-xs);
+  font-weight: var(--cs-weight-medium);
+  color: var(--cs-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--cs-tracking-label);
+  margin-bottom: var(--cs-space-4);
+}
+
+/* Wordmark */
+.cs-wordmark {
+  font-family: var(--cs-wordmark-font);
+  font-weight: var(--cs-wordmark-weight);
+  letter-spacing: var(--cs-wordmark-tracking);
+  text-transform: var(--cs-wordmark-transform);
+  color: var(--cs-text-primary);
+}
+
+.cs-tagline {
+  font-family: var(--cs-font-ui);
+  font-weight: var(--cs-tagline-weight);
+  letter-spacing: var(--cs-tagline-tracking);
+  text-transform: uppercase;
+  color: var(--cs-tagline-color);
+  font-size: var(--cs-text-xs);
+}
+
+/* Reduced motion overrides */
+@media (prefers-reduced-motion: reduce) {
+  .cs-agent-circle,
+  .cs-agent-circle.activating,
+  .cs-chip,
+  .cs-log-line,
+  .cs-progress-bar {
+    animation: none;
+    transition: none;
+  }
+  .cs-agent-circle.flagged {
+    box-shadow: 0 0 0 3px var(--cs-pulse-color);
+    animation: none;
+  }
+}

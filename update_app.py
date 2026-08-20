@@ -1,264 +1,13 @@
+import re
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import {
-  Layers, Activity, Brain, GitBranch, MessageSquare, AlertTriangle,
-  ArrowUp, Github, UploadCloud, CheckCircle, Loader2, Settings,
-  Shield, Zap, Terminal, Tag, Play, Sparkles, FolderOpen
-} from 'lucide-react';
-import BrainMap from './components/BrainMap';
-import ExecutionCinematic from './components/ExecutionCinematic';
-import { GlassPanel, NeonButton, SeverityPill, CardHeader } from './components/ui';
-import GitHubImporter from './components/GitHubImporter';
-import NeuralGrid from './components/NeuralGrid';
-import { chatWithContext } from './services/geminiService';
-import { orchestrateAgentsStreaming } from './src/agentOrchestrator';
-import { FileNode, CodeAnalysisResult, ViewState, ChatMessage, PartialCodeAnalysisResult, AgentStage } from './types';
-import StitchBackground from './StitchBackground';
+# Read original App.tsx
+with open('App.tsx', 'r') as f:
+    lines = f.readlines()
 
-type StarDot = { xPct: number; yPct: number; sizePx: number; opacity: number };
+# Get the first 259 lines
+header = "".join(lines[:259])
 
-// ── Simple markdown renderer ──
-function renderMarkdown(text: string): React.ReactNode {
-  const codeRegex = new RegExp('`([^`]+)`');
-  const lines = text.split('\n');
-  return lines.map((line, lineIdx) => {
-    const parts: React.ReactNode[] = [];
-    let remaining = line;
-    let keyIdx = 0;
-    while (remaining.length > 0) {
-      const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
-      const codeMatch = remaining.match(codeRegex);
-      const matches = [
-        boldMatch ? { type: 'bold', match: boldMatch, index: boldMatch.index! } : null,
-        codeMatch ? { type: 'code', match: codeMatch, index: codeMatch.index! } : null,
-      ].filter(Boolean).sort((a, b) => a!.index - b!.index);
-      if (matches.length === 0) { parts.push(remaining); break; }
-      const first = matches[0]!;
-      if (first.index > 0) parts.push(remaining.substring(0, first.index));
-      if (first.type === 'bold') {
-        parts.push(<strong key={`b-${lineIdx}-${keyIdx++}`} style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{first.match[1]}</strong>);
-      } else if (first.type === 'code') {
-        parts.push(<code key={`c-${lineIdx}-${keyIdx++}`} className="highlighted-term">{first.match[1]}</code>);
-      }
-      remaining = remaining.substring(first.index + first.match[0].length);
-    }
-    return (
-      <React.Fragment key={`line-${lineIdx}`}>
-        {parts}
-        {lineIdx < lines.length - 1 && <br />}
-      </React.Fragment>
-    );
-  });
-}
-
-// ── Hexagon SVG for agent pipeline ──
-const HexSvg: React.FC<{ fill: string; stroke: string }> = ({ fill, stroke }) => (
-  <svg viewBox="0 0 52 52" width="52" height="52" style={{ position: 'absolute', inset: 0 }}>
-    <polygon
-      points="26,2 49,14 49,38 26,50 3,38 3,14"
-      fill={fill}
-      stroke={stroke}
-      strokeWidth="1.5"
-    />
-  </svg>
-);
-
-// ── NavBar Hex Glyph ──
-const HexGlyph: React.FC = () => (
-  <svg className="navbar-glyph" viewBox="0 0 28 28" fill="none">
-    <polygon points="14,1 26,7.5 26,20.5 14,27 2,20.5 2,7.5" stroke="#6C63FF" strokeWidth="1.5" fill="transparent" />
-    <circle cx="14" cy="14" r="3" fill="#6C63FF" opacity="0.6" />
-    <line x1="14" y1="7" x2="14" y2="11" stroke="#6C63FF" strokeWidth="1" opacity="0.4" />
-    <line x1="14" y1="17" x2="14" y2="21" stroke="#6C63FF" strokeWidth="1" opacity="0.4" />
-    <line x1="8" y1="14" x2="11" y2="14" stroke="#6C63FF" strokeWidth="1" opacity="0.4" />
-    <line x1="17" y1="14" x2="20" y2="14" stroke="#6C63FF" strokeWidth="1" opacity="0.4" />
-  </svg>
-);
-
-// ── Agent icons map ──
-const AGENT_ICONS: Record<string, React.ElementType> = {
-  structure: Layers,
-  behavior: Activity,
-  semantic: Tag,
-  risk: Shield,
-  execution: Play,
-  synthesizer: Sparkles,
-};
-
-export default function App() {
-  const [view, setView] = useState<ViewState>('dashboard');
-  const [files, setFiles] = useState<FileNode[]>([]);
-  const [analysis, setAnalysis] = useState<CodeAnalysisResult | null>(null);
-  const [partialAnalysis, setPartialAnalysis] = useState<PartialCodeAnalysisResult | null>(null);
-  const [importSource, setImportSource] = useState<'local' | 'github'>('local');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [currentStage, setCurrentStage] = useState<AgentStage>('init');
-  const [stageMessage, setStageMessage] = useState('');
-  const [completedAgents, setCompletedAgents] = useState<string[]>([]);
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const [stars, setStars] = useState<StarDot[]>([]);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll chat
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory, chatLoading]);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const fileList: File[] = Array.from(e.target.files);
-      const codeFiles = fileList.filter((f: File) =>
-        !f.name.startsWith('.') &&
-        !(f as any).webkitRelativePath.includes('node_modules') &&
-        !(f as any).webkitRelativePath.includes('dist') &&
-        !f.name.endsWith('.png') && !f.name.endsWith('.jpg')
-      );
-      const processedFiles = await Promise.all(
-        codeFiles.map(async (file: File) => ({
-          path: (file as any).webkitRelativePath,
-          content: await file.text(),
-          language: file.name.split('.').pop() || 'text',
-          size: file.size
-        }))
-      );
-      handleFilesLoaded(processedFiles);
-    }
-  };
-
-  const handleFilesLoaded = (loadedFiles: FileNode[]) => {
-    if (!loadedFiles || loadedFiles.length === 0) {
-      console.error('[Import] No files returned from GitHub import.');
-      setStageMessage('Import failed: no files were fetched from this repository. Check your GitHub token or repo visibility.');
-      setCurrentStage('error');
-      return;
-    }
-
-    if (loadedFiles.length < 5) {
-      console.warn(`[Import] Only ${loadedFiles.length} files fetched — analysis may be incomplete.`);
-    }
-
-    console.log('[Import] Files being analyzed:', loadedFiles.map(f => f.path));
-
-    setFiles(loadedFiles);
-    setAnalysis(null);
-    setPartialAnalysis(null);
-    startStreamingAnalysis(loadedFiles);
-  };
-
-  const startStreamingAnalysis = async (filesToAnalyze: FileNode[]) => {
-    if (filesToAnalyze.length === 0) return;
-    setIsAnalyzing(true);
-    setPartialAnalysis(null);
-    setAnalysis(null);
-    setCompletedAgents([]);
-    setCurrentStage('init');
-    setStageMessage('Initializing analysis...');
-
-    try {
-      const generator = orchestrateAgentsStreaming(filesToAnalyze);
-      for await (const update of generator) {
-        setCurrentStage(update.stage);
-        setStageMessage(update.message);
-        setCompletedAgents(update.partialResult.completedAgents || []);
-        if (update.partialResult.graphData || update.partialResult.summary || update.partialResult.architecture) {
-          setPartialAnalysis(update.partialResult);
-        }
-        if (update.partialResult.graphData && update.stage === 'structure') {
-          setView('dashboard');
-        }
-        if (update.partialResult.isComplete) {
-          setAnalysis(update.partialResult as CodeAnalysisResult);
-        }
-      }
-    } catch (error: any) {
-      console.error('[Streaming Analysis] Error:', error);
-      setStageMessage(`Error: ${error.message}`);
-      setCurrentStage('error');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const handleSendMessage = async () => {
-    if (!chatInput.trim() || !analysis) return;
-    const userMsg: ChatMessage = { role: 'user', text: chatInput, timestamp: Date.now() };
-    setChatHistory(prev => [...prev, userMsg]);
-    setChatInput('');
-    setChatLoading(true);
-    try {
-      const response = await chatWithContext(chatHistory, chatInput, analysis);
-      setChatHistory(prev => [...prev, { role: 'model', text: response, timestamp: Date.now() }]);
-    } catch (e) { console.error(e); }
-    finally { setChatLoading(false); }
-  };
-
-  const handleImportError = (msg: string) => {
-    console.warn(`[Import Error] ${msg}`);
-    setStageMessage(msg);
-    setCurrentStage('error');
-  };
-
-  const handleReset = () => {
-    setAnalysis(null);
-    setPartialAnalysis(null);
-    setFiles([]);
-    setImportSource('local');
-    setCompletedAgents([]);
-    setView('dashboard');
-  };
-
-  const effectiveAnalysis = analysis || partialAnalysis;
-  const riskList = effectiveAnalysis?.risks || [];
-  const highCount = riskList.filter(r => {
-    const sev = (r.severity ?? '').toString().toLowerCase();
-    return sev === 'high' || sev === 'critical';
-  }).length;
-  const mediumCount = riskList.filter(r => (r.severity ?? '').toString().toLowerCase() === 'medium').length;
-  const lowCount = riskList.filter(r => (r.severity ?? '').toString().toLowerCase() === 'low').length;
-  const totalRisks = riskList.length;
-  const maxRiskCount = Math.max(highCount, mediumCount, lowCount, 1);
-
-  const hasGraphData = (effectiveAnalysis?.graphData?.nodes?.length || 0) > 0;
-  const hasRisks = riskList.length > 0;
-  const hasSummary = !!effectiveAnalysis?.summary;
-  const hasArchitecture = !!effectiveAnalysis?.architecture;
-  const hasAnyData = hasGraphData || hasSummary || hasArchitecture || hasRisks;
-  const showAgentProgress = isAnalyzing && !hasAnyData;
-  const showLanding = !effectiveAnalysis && !isAnalyzing;
-
-  useEffect(() => {
-    if (!showLanding) return;
-    const dots: StarDot[] = Array.from({ length: 90 }).map(() => ({
-      xPct: Math.random() * 100,
-      yPct: Math.random() * 100,
-      sizePx: 0.5 + Math.random() * 1.5,
-      opacity: 0.1 + Math.random() * 0.5,
-    }));
-    setStars(dots);
-  }, [showLanding]);
-
-  const NAV_TABS = [
-    { id: 'dashboard', label: 'Overview', ready: hasAnyData },
-    { id: 'brainMap', label: 'Brain Map', ready: hasGraphData },
-    { id: 'riskCenter', label: 'Risk Center', ready: hasRisks || isAnalyzing },
-    { id: 'chat', label: 'Chat', ready: hasAnyData },
-  ];
-
-  const AGENTS = [
-    { id: 'structure', label: 'Structure' },
-    { id: 'behavior', label: 'Behavior' },
-    { id: 'semantic', label: 'Semantic' },
-    { id: 'risk', label: 'Risk' },
-    { id: 'execution', label: 'Execution' },
-    { id: 'synthesizer', label: 'Synthesizer' },
-  ];
-
-
+new_jsx = """
   return (
     <>
       {/* SideNavBar */}
@@ -349,17 +98,9 @@ export default function App() {
           
           {/* Landing Import section if no files */}
           {(!effectiveAnalysis && !isAnalyzing) && (
-            <div className="flex flex-col gap-6 items-center justify-center mt-20 relative z-10">
-              {/* Grid goes first, sits behind everything */}
-              <NeuralGrid />
-
-              <div className="text-center relative z-10">
-                <h1 className="text-[4rem] md:text-[7rem] font-headline-xl font-bold tracking-tighter leading-none text-on-surface mb-4">
-                    Code<span className="text-primary-container">Sensei</span>
-                  </h1>
-                  <h2 className="text-on-surface-variant font-headline-lg text-headline-lg font-medium">Import a project to begin</h2>
-                </div>
-                <div className="flex gap-4 mt-16 relative z-10">
+            <div className="flex flex-col gap-6 items-center justify-center mt-20">
+                <h2 className="text-on-surface font-headline-lg text-headline-lg font-bold">Import a project to begin</h2>
+                <div className="flex gap-4">
                     <button className="bg-primary-container text-on-primary px-6 py-3 rounded hover:opacity-90 transition-opacity font-bold" onClick={() => setImportSource('github')}>GitHub Import</button>
                     <button className="border border-outline-variant text-on-surface px-6 py-3 rounded hover:bg-surface-container transition-opacity font-bold" onClick={() => fileInputRef.current?.click()}>Local Folder</button>
                     <input
@@ -393,7 +134,7 @@ export default function App() {
                   <span className="font-label-caps text-on-surface-variant">Total LOC</span>
                   <div className="flex items-baseline gap-2">
                     <span className="font-headline-lg text-headline-lg text-on-surface">
-                        {files.reduce((acc, f) => acc + (f.content ? f.content.split('\n').length : 0), 0) || '—'}
+                        {files.reduce((acc, f) => acc + (f.content ? f.content.split('\\n').length : 0), 0) || '—'}
                     </span>
                   </div>
                 </div>
@@ -563,3 +304,8 @@ export default function App() {
     </>
   );
 }
+"""
+
+with open('App.tsx', 'w') as f:
+    f.write(header + new_jsx)
+
