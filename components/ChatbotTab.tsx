@@ -25,7 +25,7 @@ export function ChatbotTab({ messages, input, setInput, send, loading }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, maxWidth: 640, width: "100%" }}>
             {SUGGESTED_PROMPTS.map((p, i) => (
-              <button key={i} onClick={() => send(p)} style={{
+              <button key={i} onClick={() => setInput(p)} style={{
                 background: COLORS.card, border: `0.5px solid ${COLORS.cardBorder}`,
                 borderRadius: 8, padding: "10px 14px", textAlign: "left",
                 fontFamily: COLORS.ui, fontSize: 12, color: COLORS.textSecondary,
