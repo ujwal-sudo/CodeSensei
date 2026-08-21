@@ -527,7 +527,7 @@ export default function App() {
                   </div>
 
                   {/* Architecture Summary / Recent Insights */}
-                  <div className="panel flex-1 flex flex-col">
+                  <div className="panel h-48 flex flex-col flex-shrink-0">
                     <div className="panel-header">
                       <h2 className="font-label-caps text-on-surface-variant">Architecture Summary</h2>
                     </div>
@@ -540,9 +540,35 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Context Chat (Minimized) */}
-                  <div className="panel mt-auto border-primary-fixed/30 bg-[#0d0f0e] focus-within:border-primary-fixed transition-colors">
-                    <div className="p-3 flex items-center gap-3">
+                  {/* Context Chat */}
+                  <div className="panel flex-1 flex flex-col border-primary-fixed/30 bg-[#0d0f0e] focus-within:border-primary-fixed transition-colors overflow-hidden">
+                    <div className="panel-header border-b border-[#1B211C] py-2">
+                      <h2 className="font-label-caps text-on-surface-variant flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[16px]">chat</span> Chatbot
+                      </h2>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin">
+                      {chatHistory.length === 0 ? (
+                        <div className="text-on-surface-variant/50 text-sm italic text-center mt-4">Ask a question about the repository...</div>
+                      ) : (
+                        chatHistory.map((msg, idx) => (
+                          <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                            <div className={`p-2 rounded max-w-[85%] text-sm ${msg.role === 'user' ? 'bg-primary-fixed text-[#0A0C0B]' : 'bg-[#161B17] border border-[#252C27] text-on-surface-variant'}`}>
+                              {msg.role === 'model' ? renderMarkdown(msg.text) : msg.text}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      {chatLoading && (
+                        <div className="flex items-start">
+                          <div className="p-2 rounded bg-[#161B17] border border-[#252C27] text-on-surface-variant text-sm">
+                            <span className="animate-pulse">Thinking...</span>
+                          </div>
+                        </div>
+                      )}
+                      <div ref={chatEndRef} />
+                    </div>
+                    <div className="p-3 border-t border-[#1B211C] flex items-center gap-3">
                       <span className="material-symbols-outlined text-primary-fixed">chat_bubble</span>
                       <input 
                         className="bg-transparent border-none outline-none text-body-sm text-on-surface placeholder:text-on-surface-variant/50 w-full focus:ring-0 p-0 font-body-sm" 
