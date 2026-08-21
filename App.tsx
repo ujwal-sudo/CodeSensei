@@ -329,9 +329,24 @@ export default function App() {
             </div>
           </div>
           <nav className="hidden md:flex items-center gap-6 h-full">
-            <a className="text-primary-fixed border-b-2 border-primary-fixed pb-[18px] mt-[18px] font-bold h-full flex items-center" href="#">Main</a>
-            <a className="text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container transition-all h-full flex items-center px-3 mt-1 rounded-t" href="#">Risk</a>
-            <a className="text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container transition-all h-full flex items-center px-3 mt-1 rounded-t" href="#">Chatbot</a>
+            <a 
+              className={`pb-[18px] mt-[18px] font-bold h-full flex items-center cursor-pointer ${['dashboard', 'brainMap'].includes(view) ? 'text-primary-fixed border-b-2 border-primary-fixed' : 'text-on-surface-variant hover:text-on-surface'}`} 
+              onClick={() => setView('dashboard')}
+            >
+              Main
+            </a>
+            <a 
+              className={`pb-[18px] mt-[18px] font-bold h-full flex items-center cursor-pointer ${view === 'riskCenter' ? 'text-primary-fixed border-b-2 border-primary-fixed' : 'text-on-surface-variant hover:text-on-surface'}`} 
+              onClick={() => setView('riskCenter')}
+            >
+              Risk
+            </a>
+            <a 
+              className={`pb-[18px] mt-[18px] font-bold h-full flex items-center cursor-pointer ${view === 'chat' ? 'text-primary-fixed border-b-2 border-primary-fixed' : 'text-on-surface-variant hover:text-on-surface'}`} 
+              onClick={() => setView('chat')}
+            >
+              Chatbot
+            </a>
           </nav>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 border-r border-outline-variant pr-4">
@@ -405,7 +420,10 @@ export default function App() {
                     <span className="font-headline-lg text-headline-lg text-on-surface">{effectiveAnalysis?.graphData?.nodes?.length || '—'}</span>
                   </div>
                 </div>
-                <div className="panel p-4 flex flex-col justify-between h-[88px] interactive border-error/30 hover:border-error/50">
+                <div 
+                  className="panel p-4 flex flex-col justify-between h-[88px] interactive border-error/30 hover:border-error/50 cursor-pointer"
+                  onClick={() => setView('riskCenter')}
+                >
                   <span className="font-label-caps text-error">Risks Detected</span>
                   <div className="flex items-baseline gap-2">
                     <span className="font-headline-lg text-headline-lg text-error">{effectiveAnalysis?.risks?.length || '0'}</span>
@@ -507,15 +525,15 @@ export default function App() {
                 <div className="lg:col-span-4 flex flex-col gap-6">
                   {/* Risk Center */}
                   <div className="panel">
-                    <div className="panel-header flex justify-between items-center">
+                    <div className="panel-header flex justify-between items-center cursor-pointer" onClick={() => setView('riskCenter')}>
                       <h2 className="font-label-caps text-on-surface-variant">Risk Center</h2>
-                      <a className="font-code-sm text-primary-fixed hover:underline" href="#">View All</a>
+                      <span className="font-code-sm text-primary-fixed hover:underline">View All</span>
                     </div>
                     <div className="panel-body space-y-3">
                       {(effectiveAnalysis?.risks || []).slice(0, 3).map((r, i) => (
-                        <div key={i} className={`p-3 border border-[#434936] rounded bg-[#161B17] hover:border-[#FF5C5C]/50 transition-colors cursor-pointer`}>
+                        <div key={i} className={`p-3 border border-[#434936] rounded bg-[#161B17] hover:border-[#FF5C5C]/50 transition-colors cursor-pointer`} onClick={() => setView('riskCenter')}>
                           <div className="flex justify-between items-start mb-2">
-                            <span className="font-code-sm text-on-surface truncate pr-2">{r.file}</span>
+                            <span className="font-code-sm text-on-surface truncate pr-2">{r.file || r.location}</span>
                             <span className={`bg-[#93000a]/20 text-[#FF5C5C] border border-[#93000a] text-[10px] px-1.5 py-0.5 rounded font-label-caps`}>
                               {r.severity}
                             </span>
@@ -545,9 +563,9 @@ export default function App() {
 
                   {/* Context Chat */}
                   <div className="panel flex-1 flex flex-col border-primary-fixed/30 bg-[#0d0f0e] focus-within:border-primary-fixed transition-colors overflow-hidden">
-                    <div className="panel-header border-b border-[#1B211C] py-2">
+                    <div className="panel-header border-b border-[#1B211C] py-2 cursor-pointer hover:bg-surface-container-high transition-colors" onClick={() => setView('chat')}>
                       <h2 className="font-label-caps text-on-surface-variant flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[16px]">chat</span> Chatbot
+                        <span className="material-symbols-outlined text-[16px]">chat</span> Chatbot (Click to expand)
                       </h2>
                     </div>
                     <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin">
