@@ -328,8 +328,8 @@ export default function App() {
           </div>
           <nav className="hidden md:flex items-center gap-6 h-full">
             <a className="text-primary-fixed border-b-2 border-primary-fixed pb-[18px] mt-[18px] font-bold h-full flex items-center" href="#">Main</a>
-            <a className="text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container transition-all h-full flex items-center px-3 mt-1 rounded-t" href="#">Agents</a>
-            <a className="text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container transition-all h-full flex items-center px-3 mt-1 rounded-t" href="#">Analytics</a>
+            <a className="text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container transition-all h-full flex items-center px-3 mt-1 rounded-t" href="#">Risk</a>
+            <a className="text-on-surface-variant font-medium hover:text-on-surface hover:bg-surface-container transition-all h-full flex items-center px-3 mt-1 rounded-t" href="#">Chatbot</a>
           </nav>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 border-r border-outline-variant pr-4">
