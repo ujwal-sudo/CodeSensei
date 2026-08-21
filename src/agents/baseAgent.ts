@@ -29,16 +29,16 @@ const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 /**
  * Multi-Key Tiered Intelligence Model Configuration
  * 
- * Using openai/gpt-oss-120b:free for all tasks
- * This is a free model with good reasoning capabilities
+ * Using nvidia/nemotron-3-ultra-550b-a55b:free for all tasks
+ * This is a free model with advanced reasoning capabilities
  */
 export const MODELS = {
-  // High-volume tasks: Use Nemotron (fast & cheap)
-  STANDARD: "nvidia/nemotron-3-super-120b-a12b:free",
-  // Mid-tier tasks: Use Nemotron (fast & cheap) - mapping FLASH to Nemotron as well to save OpenAI for complex tasks
-  FLASH: "nvidia/nemotron-3-super-120b-a12b:free",
-  // High-reasoning tasks: Use Nemotron (same model, data policy compatible)
-  PRO: "nvidia/nemotron-3-super-120b-a12b:free"
+  // High-volume tasks: Use Nemotron Ultra
+  STANDARD: "nvidia/nemotron-3-ultra-550b-a55b:free",
+  // Mid-tier tasks: Use Nemotron Ultra
+  FLASH: "nvidia/nemotron-3-ultra-550b-a55b:free",
+  // High-reasoning tasks: Use Nemotron Ultra
+  PRO: "nvidia/nemotron-3-ultra-550b-a55b:free"
 };
 
 // Model tiers for automatic key selection
