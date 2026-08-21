@@ -14,6 +14,8 @@ import { chatWithContext } from './services/geminiService';
 import { orchestrateAgentsStreaming } from './src/agentOrchestrator';
 import { FileNode, CodeAnalysisResult, ViewState, ChatMessage, PartialCodeAnalysisResult, AgentStage } from './types';
 import StitchBackground from './StitchBackground';
+import { ChatbotTab } from './components/ChatbotTab';
+import { RisksTab } from './components/RisksTab';
 
 type StarDot = { xPct: number; yPct: number; sizePx: number; opacity: number };
 
@@ -419,12 +421,13 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Dashboard Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-220px)] min-h-[600px]">
-                {/* Left Column (Featured) */}
-                <div className="lg:col-span-8 flex flex-col gap-6">
-                  {/* Brain Map Canvas */}
-                  <div className="panel flex-1 flex flex-col overflow-hidden relative group">
+              {view === 'dashboard' && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-220px)] min-h-[600px]">
+                  {/* Left Column (Featured) */}
+                  <div className="lg:col-span-8 flex flex-col gap-6">
+                    {/* Brain Map Canvas */}
+                    <div className="panel flex-1 flex flex-col overflow-hidden relative group">
+
                     <div className="panel-header flex justify-between items-center bg-[#111512]/80 backdrop-blur z-10 absolute top-0 w-full border-b-0 group-hover:border-b border-outline-variant transition-all">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-primary-fixed text-[18px]">insights</span>
@@ -582,6 +585,19 @@ export default function App() {
                   </div>
                 </div>
               </div>
+              )}
+
+              {view === 'chat' && (
+                <div className="h-[calc(100vh-220px)] min-h-[600px] w-full max-w-4xl mx-auto panel overflow-hidden">
+                  <ChatbotTab messages={chatHistory} input={chatInput} setInput={setChatInput} send={handleSendMessage} loading={chatLoading} />
+                </div>
+              )}
+
+              {view === 'riskCenter' && (
+                <div className="h-[calc(100vh-220px)] min-h-[600px] w-full panel overflow-hidden">
+                  <RisksTab risks={effectiveAnalysis?.risks || []} />
+                </div>
+              )}
             </>
           )}
         </div>

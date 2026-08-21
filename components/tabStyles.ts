@@ -1,0 +1,30 @@
+export const COLORS = {
+  bg: "#0f0f0f",
+  sidebar: "#141414",
+  card: "#1a1a1a",
+  cardBorder: "#2a2a2a",
+  accent: "#a3e635",
+  accentDim: "#6b9e1f",
+  textPrimary: "#f0f0f0",
+  textSecondary: "#888",
+  textMuted: "#555",
+  danger: "#ef4444",
+  dangerBg: "#3f1212",
+  warning: "#f59e0b",
+  warningBg: "#3d2600",
+  medium: "#f97316",
+  mediumBg: "#3d1a00",
+  low: "#22d3ee",
+  lowBg: "#0a2a2e",
+  mono: "'JetBrains Mono', 'Fira Code', monospace",
+  ui: "'Inter', system-ui, sans-serif",
+};
+
+export const SUGGESTED_PROMPTS = [
+  "What are the most critical security issues in this repo?",
+  "Explain the architecture of this codebase",
+  "Which files have the most dependencies?",
+  "Find all functions that handle user input",
+  "Where is the entry point for browser automation?",
+  "What would break if I removed run_task.py?",
+];
