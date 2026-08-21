@@ -33,12 +33,12 @@ const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
  * This is a free model with good reasoning capabilities
  */
 export const MODELS = {
-  // High-volume tasks: Use Gemma (fast & cheap)
-  STANDARD: "google/gemma-2-9b-it:free",
-  // Mid-tier tasks: Use Gemma (fast & cheap) - mapping FLASH to Gemma as well to save OpenAI for complex tasks
-  FLASH: "google/gemma-2-9b-it:free",
-  // High-reasoning tasks: Use Gemma (same model, data policy compatible)
-  PRO: "google/gemma-2-9b-it:free"
+  // High-volume tasks: Use Nemotron (fast & cheap)
+  STANDARD: "nvidia/nemotron-3-super-120b-a12b:free",
+  // Mid-tier tasks: Use Nemotron (fast & cheap) - mapping FLASH to Nemotron as well to save OpenAI for complex tasks
+  FLASH: "nvidia/nemotron-3-super-120b-a12b:free",
+  // High-reasoning tasks: Use Nemotron (same model, data policy compatible)
+  PRO: "nvidia/nemotron-3-super-120b-a12b:free"
 };
 
 // Model tiers for automatic key selection
